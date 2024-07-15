@@ -178,7 +178,7 @@ def main():
             target_time_today += timedelta(days=1)
 
         time_difference = (target_time_today - datetime.now()).total_seconds()
-        time.sleep(time_difference-5)
+        time.sleep(time_difference)
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Available Commands:\n/checkmc -> Check for MC Lapses\n/checkconduct -> Conduct Tracking Updates\
@@ -211,6 +211,7 @@ def telegram_manager() -> None:
     application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
 
 if __name__ == '__main__':
+    
     send_tele_msg("Welcome to HQ Bot. Strong alone, stronger together. Send /help for list of available commands.")
     mainCheckMcProcess = Process(target=main)
     mainCheckMcProcess.start()
