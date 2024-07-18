@@ -10,6 +10,7 @@ from pydrive.drive import GoogleDrive
 from google.oauth2 import service_account
 from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
 
 import telegram
 from telegram import Update
@@ -17,6 +18,16 @@ from telegram.ext import Application, ApplicationBuilder, CommandHandler, Contex
 import asyncio
 import nest_asyncio
 nest_asyncio.apply() # patch asyncio
+
+import pytesseract
+import cv2
+import numpy as np
+from io import BytesIO
+import io
+from pdf2image import convert_from_bytes
+import pyheif
+from PIL import Image
+import re
 
 # Telegram Channel
 telegram_bot = telegram.Bot(token=TELEGRAM_CHANNEL_BOT_TOKEN)
@@ -81,10 +92,8 @@ def checkMc():
     lapseMcList = []
     possibleMcList = []
     for mc in McList:
-        #TODO: Remove all ranks after standardisation of folder with full names only
         rank = mc[0].split(' ')[0]
-        if rank in trooperRanks: folderName = mc[0].replace(rank + " ", "") # remove rank from name if trooper
-        else: folderName = mc[0]
+        folderName = mc[0].replace(rank + " ", "") # remove rank from name
         folderList = drive.ListFile({'q': f"title='{folderName}' and trashed=false"}).GetList()
         assert len(folderList) != 0, "No MC folder of the name {} is present".format(folderName)
         assert len(folderList) == 1, "More than one MC folder of the name {} is present".format(folderName)
@@ -93,6 +102,7 @@ def checkMc():
         tmp = mc[1].split(' ')
         tmp[1] = monthConversion[tmp[1]] # convert MMM to MM
         startDate = ''.join(tmp)
+        startDateTime = datetime.strptime(startDate, "%d%m%y").date()
         tmp = mc[2].split(' ')
         tmp[1] = monthConversion[tmp[1]] # convert MMM to MM
         endDate = ''.join(tmp)
@@ -101,11 +111,56 @@ def checkMc():
             tmp = driveMc['createdDate'].split('T')[0].split('-')
             tmp.reverse()
             tmp[2] = tmp[2].replace("20", "")
+            uploadDate = "".join(tmp)
+            uploadDateTime = datetime.strptime(uploadDate, "%d%m%y").date()
             if startDate in driveMc['title'] and endDate in driveMc['title']: # found MC file
                 foundMcFile = True
                 break
-            elif "".join(tmp) == startDate: # possible MC file uploaded on same date as start of MC
-                possibleMcList.append(mc)
+            elif uploadDateTime >= startDateTime: # possible MC file with upload date later than start of MC date
+                request = service.files().get_media(fileId=driveMc['id'])
+                imageIo = io.BytesIO()
+                downloader = MediaIoBaseDownload(imageIo, request)
+                done = False
+                while done is False:
+                    status, done = downloader.next_chunk()
+                imageIo.seek(0)
+                if driveMc['fileExtension'].upper() == 'PDF': # PDF Formats
+                    images = convert_from_bytes(imageIo.read())
+                    pil_image = images[0]  # Convert the first page only
+                    img = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+                elif driveMc['fileExtension'].upper() == 'HEIC': # HEIC Formats
+                    heif_file = pyheif.read(imageIo.read())
+                    image = Image.frombytes(
+                        heif_file.mode, 
+                        heif_file.size, 
+                        heif_file.data,
+                        "raw",
+                        heif_file.mode,
+                        heif_file.stride,
+                    )
+                    img = np.array(image) # Ensure it's in RGB mode
+                else: #jpg/jpeg formats
+                    file_data = BytesIO(request.execute())
+                    imageArray = np.asarray(bytearray(file_data.read()), dtype="uint8")
+                    img = cv2.imdecode(imageArray, cv2.IMREAD_COLOR)
+                imageText = pytesseract.image_to_string(img)
+                # print(imageText)
+                pattern1 = r"\b(\d{1,2}/\d{1,2}/\d{4})\b"
+                pattern2 = r"\b(\d{1,2}-[A-Za-z]{3}-\d{4})\b"
+                dates_format1 = re.findall(pattern1, imageText)
+                dates_format2 = re.findall(pattern2, imageText)
+                allDates = []
+                for date in dates_format1:
+                    allDates.append(date.replace("/", ""))
+                for date in dates_format2:
+                    tmp = date.split('-')
+                    tmp[1] = monthConversion[tmp[1]]
+                    tmp[2] = tmp[2].replace("20", "")
+                    allDates.append("".join(tmp))
+                if startDate in allDates and endDate in allDates: 
+                    foundMcFile = True
+                    break
+                else: possibleMcList.append(mc)
 
         if not foundMcFile: lapseMcList.append(mc) 
 
@@ -138,6 +193,7 @@ def conductTracking():
             foundIndexes = True
         elif foundIndexes and date != currentDate and date != "": break
     if len(colIndexes) == 0: send_tele_msg("No conducts today")
+    
     # for each conduct TODAY
     for index in colIndexes:
         colValues = conductTrackingSheet.col_values(index)
@@ -145,25 +201,40 @@ def conductTracking():
         #1-Date, 2-HAPT/NON HAPT, 3-Conduct, 4-17-HQ, 18-42-p7, 43-67-p8, 68-93-p9, 94-146-cmd
         conductDate = colValues[1]
         conductName = colValues[3]
-        hqUpdated = False
-        p7Updated = False
-        p8Updated = False
-        p9Updated = False
+        hqTrackingStatus = []
+        p7TrackingStatus = []
+        p8TrackingStatus = []
+        p9TrackingStatus = []
         for row, colValue in enumerate(colValues, start = 0):
             if len(ajColValues)-1 < row: ajColValues.append("")
             if row<3:continue
-            if not hqUpdated and row>=4 and row<=17 and (colValue != 'FALSE' or ajColValues[row] != ""): hqUpdated = True
-            elif not p7Updated and row>=18 and row<=42 and (colValue != 'FALSE' or ajColValues[row] != ""): p7Updated = True
-            elif not p8Updated and row>=43 and row<=67 and (colValue != 'FALSE' or ajColValues[row] != ""): p8Updated = True
-            elif not p9Updated and row>=68 and row<=93 and (colValue != 'FALSE' or ajColValues[row] != ""): p9Updated = True
-            if hqUpdated and p7Updated and p8Updated and p9Updated: break
+            if row>=4 and row<=17: # HQ
+                if (colValue != 'FALSE' or ajColValues[row] != ""): hqTrackingStatus.append(True)
+                else: hqTrackingStatus.append(False)
+            elif row>=18 and row<=42:
+                if (colValue != 'FALSE' or ajColValues[row] != ""): p7TrackingStatus.append(True)
+                else: p7TrackingStatus.append(False)
+            elif row>=43 and row<=67:
+                if (colValue != 'FALSE' or ajColValues[row] != ""): p8TrackingStatus.append(True)
+                else: p8TrackingStatus.append(False)
+            elif row>=68 and row<=93:
+                if (colValue != 'FALSE' or ajColValues[row] != ""): p9TrackingStatus.append(True)
+                else: p9TrackingStatus.append(False)
         updatedMsg = "{} {}: ".format(conductDate, conductName)
-        if hqUpdated and p7Updated and p8Updated and p9Updated: updatedMsg = "".join([updatedMsg, "All updated"])
+        if set(hqTrackingStatus) == {True} and set(p7TrackingStatus) == {True} and set(p8TrackingStatus) == {True} and set(p9TrackingStatus) == {True}: updatedMsg = "".join([updatedMsg, "All updated"])
         else:
-            if not hqUpdated: updatedMsg = "\n".join([updatedMsg, "HQ not updated"])
-            if not p7Updated: updatedMsg = "\n".join([updatedMsg, "P7 not updated"])
-            if not p8Updated: updatedMsg = "\n".join([updatedMsg, "P8 not updated"])
-            if not p9Updated: updatedMsg = "\n".join([updatedMsg, "P9 not updated"])
+            if set(hqTrackingStatus) == {True}: updatedMsg = "\n".join([updatedMsg, "HQ updated"])
+            if not set(hqTrackingStatus) == {True} and not set(hqTrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "HQ partially updated"])
+            if set(hqTrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "HQ not updated"])
+            if set(p7TrackingStatus) == {True}: updatedMsg = "\n".join([updatedMsg, "P7 updated"])
+            if not set(p7TrackingStatus) == {True} and not set(p7TrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "P7 partially updated"])
+            if set(p7TrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "P7 not updated"])
+            if set(p8TrackingStatus) == {True}: updatedMsg = "\n".join([updatedMsg, "P8 updated"])
+            if not set(p8TrackingStatus) == {True} and not set(p8TrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "P8 partially updated"])
+            if set(p8TrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "P8 not updated"])
+            if set(p9TrackingStatus) == {True}: updatedMsg = "\n".join([updatedMsg, "P9 updated"])
+            if not set(p9TrackingStatus) == {True} and not set(p9TrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "P9 partially updated"])
+            if set(p9TrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "P9 not updated"])
         send_tele_msg(updatedMsg)
 
 def main():
