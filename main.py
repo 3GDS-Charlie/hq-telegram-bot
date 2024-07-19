@@ -1,13 +1,14 @@
 import os
 from flask import Flask
+from multiprocessing import Process
 app = Flask(__name__)
 port = int(os.getenv("PORT", 10000))
-app.run(host='0.0.0.0', port=port)
+def http():
+    app.run(host='0.0.0.0', port=port)
 
 import time
 import gspread
 from datetime import datetime, timedelta
-from multiprocessing import Process
 from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS
 
 # PyDrive library has been depracated since 2021
@@ -288,7 +289,10 @@ def telegram_manager() -> None:
     application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
 
 if __name__ == '__main__':
-    
+
+    httpProcess = Process(target=http)
+    httpProcess.start()
+
     send_tele_msg("Welcome to HQ Bot. Strong alone, stronger together. Send /help for list of available commands.")
     mainCheckMcProcess = Process(target=main)
     mainCheckMcProcess.start()
