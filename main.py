@@ -1,3 +1,9 @@
+import os
+from flask import Flask
+app = Flask(__name__)
+port = int(os.getenv("PORT", 10000))
+app.run(host='0.0.0.0', port=port)
+
 import time
 import gspread
 from datetime import datetime, timedelta
@@ -44,7 +50,7 @@ def send_tele_msg(msg):
 async def send_telegram_bot_msg(msg, channel_id):
     await telegram_bot.send_message(chat_id = channel_id, text = msg)
 
-def checkMc():
+def checkMcStatus():
     # Get Coy MC list from parade state
     gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
     sheet = gc.open("3GDS CHARLIE PARADE STATE")
@@ -241,7 +247,7 @@ def main():
     while True:
         if datetime.now().hour == 9 and datetime.now().minute == 0:
             send_tele_msg("Checking for MC Lapses...")
-            checkMc()
+            checkMcStatus()
         target_time_today = datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
 
         # If the target time is earlier in the day, add a day to the target time
@@ -252,20 +258,20 @@ def main():
         time.sleep(time_difference)
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Available Commands:\n/checkmc -> Check for MC Lapses\n/checkconduct -> Conduct Tracking Updates\
+    await update.message.reply_text("Available Commands:\n/checkmc -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
                                     \n/checkall -> Check everything")
 
-async def checkMcHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Checking for MC Lapses...")
-    checkMc()
+async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Checking for MC/Status Lapses...")
+    checkMcStatus()
 
 async def checkConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Checking for conduct tracking updates...")
     conductTracking()
 
 async def checkAllHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Checking for MC Lapses...")
-    checkMc()
+    await update.message.reply_text("Checking for MC/Status Lapses...")
+    checkMcStatus()
     await update.message.reply_text("Checking for conduct tracking updates...")
     conductTracking()
 
@@ -275,7 +281,7 @@ def telegram_manager() -> None:
 
     #Add handlers
     application.add_handler(CommandHandler("help", helpHandler))
-    application.add_handler(CommandHandler("checkmc", checkMcHandler))
+    application.add_handler(CommandHandler("checkmcstatus", checkMcStatusHandler))
     application.add_handler(CommandHandler("checkconduct", checkConductHandler))
     application.add_handler(CommandHandler("checkall", checkAllHandler))
 
