@@ -1,7 +1,3 @@
-# Add this to your main application file
-import site
-print("Python site-packages directories:", site.getsitepackages())
-
 import os
 from flask import Flask
 from multiprocessing import Process
@@ -31,7 +27,7 @@ import nest_asyncio
 nest_asyncio.apply() # patch asyncio
 
 import pytesseract
-# pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+pytesseract.pytesseract.tesseract_cmd = '/opt/render/project/src/.venv/lib/python3.11/site-packages/tesseract'
 import cv2
 import numpy as np
 from io import BytesIO
