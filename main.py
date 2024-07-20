@@ -1,10 +1,10 @@
-import os
-from flask import Flask
+# import os
+# from flask import Flask
 from multiprocessing import Process
-app = Flask(__name__)
-port = int(os.getenv("PORT", 10000))
-def http():
-    app.run(host='0.0.0.0', port=port)
+# app = Flask(__name__)
+# port = int(os.getenv("PORT", 10000))
+# def http():
+#     app.run(host='0.0.0.0', port=port)
 
 import time
 import gspread
@@ -290,8 +290,8 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
-    httpProcess = Process(target=http)
-    httpProcess.start()
+    # httpProcess = Process(target=http)
+    # httpProcess.start()
 
     send_tele_msg("Welcome to HQ Bot. Strong alone, stronger together. Send /help for list of available commands.")
     mainCheckMcProcess = Process(target=main)
