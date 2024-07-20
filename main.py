@@ -259,7 +259,7 @@ def main():
         time.sleep(time_difference)
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Available Commands:\n/checkmc -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
+    await update.message.reply_text("Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
                                     \n/checkall -> Check everything")
 
 async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
