@@ -1,3 +1,6 @@
+import site
+print("Python site-packages directories:", site.getsitepackages())
+
 import os
 from flask import Flask
 from multiprocessing import Process
@@ -27,7 +30,7 @@ import nest_asyncio
 nest_asyncio.apply() # patch asyncio
 
 import pytesseract
-pytesseract.pytesseract.tesseract_cmd = r'q/opt/render/project/src/.venv/lib/python3.11/site-packages/pytesseract'
+pytesseract.pytesseract.tesseract_cmd = r'/Users/zeyeung/Desktop/HQBot/.venv/lib/python3.10/site-packages/pytesseract/'
 import cv2
 import numpy as np
 from io import BytesIO
