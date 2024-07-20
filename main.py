@@ -27,7 +27,7 @@ import nest_asyncio
 nest_asyncio.apply() # patch asyncio
 
 import pytesseract
-pytesseract.pytesseract.tesseract_cmd = '/opt/render/project/src/.venv/lib/python3.11/site-packages/pytesseract'
+pytesseract.pytesseract.tesseract_cmd = r'q/opt/render/project/src/.venv/lib/python3.11/site-packages/pytesseract'
 import cv2
 import numpy as np
 from io import BytesIO
