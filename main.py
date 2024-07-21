@@ -27,7 +27,9 @@ import asyncio
 import nest_asyncio
 nest_asyncio.apply() # patch asyncio
 
-import pytesseract
+# import pytesseract
+import easyocr
+reader = easyocr.Reader(['en'], gpu=True)
 import cv2
 import numpy as np
 from io import BytesIO
@@ -153,7 +155,12 @@ def checkMcStatus():
                         file_data = BytesIO(request.execute())
                         imageArray = np.asarray(bytearray(file_data.read()), dtype="uint8")
                         img = cv2.imdecode(imageArray, cv2.IMREAD_COLOR)
-                    imageText = pytesseract.image_to_string(img)
+                    results = reader.readtext(img, decoder='wordbeamsearch', paragraph=True)
+                    imageText = ""
+                    for result in results:
+                        imageText += result[1]
+                        imageText += " "
+                    # imageText = pytesseract.image_to_string(img)
                     # print(imageText)
                     pattern1 = r"\b(\d{1,2}/\d{1,2}/\d{4})\b"
                     pattern2 = r"\b(\d{1,2}-[A-Za-z]{3}-\d{4})\b"
@@ -302,6 +309,9 @@ def telegram_manager() -> None:
     application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
 
 if __name__ == '__main__':
+
+    # checkMcStatus()
+    # exit()
 
     httpProcess = Process(target=http)
     httpProcess.start()
