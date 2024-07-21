@@ -1,0 +1,15 @@
+# render.yaml
+
+services:
+  - name: HQBOT
+    buildCommand: |
+      # Install Tesseract OCR
+      apt-get update && apt-get install -y tesseract-ocr
+
+      # Optionally install additional packages or dependencies if needed
+
+      # Verify installation
+      tesseract --version  # Check if Tesseract OCR is installed and print its version
+
+    # Define your start command or leave it empty if not applicable
+    startCommand: ""
