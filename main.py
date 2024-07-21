@@ -30,7 +30,6 @@ import nest_asyncio
 nest_asyncio.apply() # patch asyncio
 
 import pytesseract
-pytesseract.pytesseract.tesseract_cmd = r'/Users/zeyeung/Desktop/HQBot/.venv/lib/python3.10/site-packages/pytesseract/'
 import cv2
 import numpy as np
 from io import BytesIO
