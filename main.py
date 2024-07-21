@@ -27,9 +27,10 @@ import asyncio
 import nest_asyncio
 nest_asyncio.apply() # patch asyncio
 
-# import pytesseract
-import easyocr
-reader = easyocr.Reader(['en'], gpu=False, model_storage_directory="DBNet/model/model.py/")
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd = r'tesseract'
+# import easyocr
+# reader = easyocr.Reader(['en'], gpu=False, model_storage_directory="DBNet/model/model.py/")
 import cv2
 import numpy as np
 from io import BytesIO
@@ -155,12 +156,12 @@ def checkMcStatus():
                         file_data = BytesIO(request.execute())
                         imageArray = np.asarray(bytearray(file_data.read()), dtype="uint8")
                         img = cv2.imdecode(imageArray, cv2.IMREAD_COLOR)
-                    results = reader.readtext(img, decoder='wordbeamsearch', paragraph=True)
-                    imageText = ""
-                    for result in results:
-                        imageText += result[1]
-                        imageText += " "
-                    # imageText = pytesseract.image_to_string(img)
+                    # results = reader.readtext(img, decoder='wordbeamsearch', paragraph=True)
+                    # imageText = ""
+                    # for result in results:
+                    #     imageText += result[1]
+                    #     imageText += " "
+                    imageText = pytesseract.image_to_string(img)
                     # print(imageText)
                     pattern1 = r"\b(\d{1,2}/\d{1,2}/\d{4})\b"
                     pattern2 = r"\b(\d{1,2}-[A-Za-z]{3}-\d{4})\b"
