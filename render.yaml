@@ -12,4 +12,4 @@ services:
       tesseract --version  # Check if Tesseract OCR is installed and print its version
 
     # Define your start command or leave it empty if not applicable
-    startCommand: ""
+    startCommand: "pip3 install -r requirements.txt"
