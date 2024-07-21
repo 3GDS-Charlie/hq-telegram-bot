@@ -1,6 +1,3 @@
-import site
-print("Python site-packages directories:", site.getsitepackages())
-
 import os
 from flask import Flask
 from multiprocessing import Process
