@@ -29,7 +29,7 @@ nest_asyncio.apply() # patch asyncio
 
 # import pytesseract
 import easyocr
-reader = easyocr.Reader(['en'])
+reader = easyocr.Reader(['en'], gpu=False, model_storage_directory="DBNet/model/model.py/")
 import cv2
 import numpy as np
 from io import BytesIO
