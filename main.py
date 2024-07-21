@@ -28,7 +28,7 @@ import nest_asyncio
 nest_asyncio.apply() # patch asyncio
 
 import pytesseract
-pytesseract.pytesseract.tesseract_cmd = r'pytesseract/tesseract'
+pytesseract.pytesseract.tesseract_cmd = 'pytesseract/tesseract'
 # import easyocr
 # reader = easyocr.Reader(['en'], gpu=False, model_storage_directory="DBNet/model/model.py/")
 import cv2
