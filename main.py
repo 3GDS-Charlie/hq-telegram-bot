@@ -1,11 +1,3 @@
-import os
-from flask import Flask
-from multiprocessing import Process
-app = Flask(__name__)
-port = int(os.getenv("PORT", 10000))
-def http():
-    app.run(host='0.0.0.0', port=port)
-
 import time
 import gspread
 from datetime import datetime, timedelta
@@ -26,6 +18,7 @@ from telegram.ext import Application, ApplicationBuilder, CommandHandler, Contex
 import asyncio
 import nest_asyncio
 nest_asyncio.apply() # patch asyncio
+from multiprocessing import Process
 
 import pytesseract
 # pytesseract.pytesseract.tesseract_cmd = 'pytesseract/tesseract'
@@ -156,13 +149,7 @@ def checkMcStatus():
                         file_data = BytesIO(request.execute())
                         imageArray = np.asarray(bytearray(file_data.read()), dtype="uint8")
                         img = cv2.imdecode(imageArray, cv2.IMREAD_COLOR)
-                    # results = reader.readtext(img, decoder='wordbeamsearch', paragraph=True)
-                    # imageText = ""
-                    # for result in results:
-                    #     imageText += result[1]
-                    #     imageText += " "
                     imageText = pytesseract.image_to_string(img)
-                    # print(imageText)
                     pattern1 = r"\b(\d{1,2}/\d{1,2}/\d{4})\b"
                     pattern2 = r"\b(\d{1,2}-[A-Za-z]{3}-\d{4})\b"
                     dates_format1 = re.findall(pattern1, imageText)
@@ -310,12 +297,6 @@ def telegram_manager() -> None:
     application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
 
 if __name__ == '__main__':
-
-    # checkMcStatus()
-    # exit()
-
-    httpProcess = Process(target=http)
-    httpProcess.start()
 
     send_tele_msg("Welcome to HQ Bot. Strong alone, stronger together. Send /help for list of available commands.")
     mainCheckMcProcess = Process(target=main)
