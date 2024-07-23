@@ -259,6 +259,24 @@ def updateWhatsappGrpMembers(cet):
     
     dutyGrpId = "120363314173996674@g.us"
     greenAPI = API.GreenAPI("7103960874", "e226a9f2550045dfb03624e95950d4448ff72a4a96774f7cbf")
+    
+    # Getting duty commanders from CET
+    try: 
+        cetSegments = cet.split('\n')
+        CDS = None
+        PDS7 = None
+        PDS8 = None
+        PDS9 = None
+        for segment in cetSegments:
+            if 'CDS' in segment: CDS = segment.split(': ')[-1]
+            elif 'PDS7' in segment: PDS7 = segment.split(': ')[-1]
+            elif 'PDS8' in segment: PDS8 = segment.split(': ')[-1]
+            elif 'PDS9' in segment: PDS9 = segment.split(': ')[-1]
+        if CDS is None and PDS7 is None and PDS8 is None and PDS9 is None: raise Exception
+    except Exception as e: 
+        send_tele_msg("Unrecognized CET")
+        return
+    
     response = greenAPI.sending.sendMessage(dutyGrpId, "Updating duty commanders. This is an automated message.")
     
     #Removal of previous duty members
@@ -278,22 +296,6 @@ def updateWhatsappGrpMembers(cet):
                 greenAPI.groups.removeGroupParticipant(dutyGrpId, member['id']) 
 
     # Adding new duty members
-    try: 
-        cetSegments = cet.split('\n')
-        CDS = None
-        PDS7 = None
-        PDS8 = None
-        PDS9 = None
-        for segment in cetSegments:
-            if 'CDS' in segment: CDS = segment.split(': ')[-1]
-            elif 'PDS7' in segment: PDS7 = segment.split(': ')[-1]
-            elif 'PDS8' in segment: PDS8 = segment.split(': ')[-1]
-            elif 'PDS9' in segment: PDS9 = segment.split(': ')[-1]
-        if CDS is None and PDS7 is None and PDS8 is None and PDS9 is None: raise Exception
-    except Exception as e: 
-        send_tele_msg("Unrecognized CET")
-        return
-    
     if CDS not in charlieDutyCmds: send_tele_msg("CDS {} not found".format(CDS))
     else: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(charlieDutyCmds[CDS]))
     if PDS7 not in charlieDutyCmds: send_tele_msg("PDS7 {} not found".format(PDS7))
