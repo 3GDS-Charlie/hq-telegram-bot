@@ -14,16 +14,13 @@ from googleapiclient.http import MediaIoBaseDownload
 
 import telegram
 from telegram import Update
-from telegram.ext import Application, ApplicationBuilder, CommandHandler, ContextTypes, Updater
+from telegram.ext import Application, ApplicationBuilder, CommandHandler, ContextTypes, Updater, CallbackContext, ConversationHandler, MessageHandler, filters
 import asyncio
 import nest_asyncio
 nest_asyncio.apply() # patch asyncio
 from multiprocessing import Process
 
 import pytesseract
-# pytesseract.pytesseract.tesseract_cmd = 'pytesseract/tesseract'
-# import easyocr
-# reader = easyocr.Reader(['en'], gpu=False, model_storage_directory="DBNet/model/model.py/")
 import cv2
 import numpy as np
 from io import BytesIO
@@ -33,6 +30,9 @@ import pyheif
 from PIL import Image
 import re
 
+import requests
+from whatsapp_api_client_python import API
+
 # Telegram Channel
 telegram_bot = telegram.Bot(token=TELEGRAM_CHANNEL_BOT_TOKEN)
 
@@ -40,13 +40,16 @@ monthConversion = {"Jan":"01", "Feb":"02", "Mar":"03", "Apr":"04", "May":"05", "
 trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
+charlieDutyCmds = {"3SG ELLIOT":"88110850", "3SG JAVEEN":"82316394", "3SG ZACH":"98107933", "3SG ILLIYAS":"92300624", "3SG DAMIEN":"98999958", "3SG JOASH":"94787064", "3SG JOEL":"93672953", "3SG JOSEPH":"87785701", "3SG MAD":"98250556", "3SG PATRICK":"83740026", "3SG SHENG JUN":"84096282", "3SG AFIF":"91867127", "3SG IRFAN":"97218155", "3SG VIKNESH":"87862607", "3SG KERWIN":"97734298", "3SG NAWFAL":"84282446", "3SG SKY":"88877846", "3SG SRIRAM":"87002363"}
+# 4 PS + 4 PC + 2 HQ Spec
+permDutyCmds = {"3SG ZE YEUNG":"87157835", "3SG LIANG DING":"90282045", "3SG KEI LOK":"91361826", "3SG GREGORY":"84208408", "3SG KAI LE":"90882585", "3SG RONG JIN":"97289218", "ETHAN CHAN":"90030559", "JEREMIAH":"87207881", "DAEMON":"91553385", "MAX":"93696236"}
 
 def send_tele_msg(msg):
     for _, value in CHANNEL_IDS.items():
         asyncio.run(send_telegram_bot_msg(msg, value))
 
 async def send_telegram_bot_msg(msg, channel_id):
-    await telegram_bot.send_message(chat_id = channel_id, text = msg)
+    await telegram_bot.send_message(chat_id = channel_id, text = msg)      
 
 def checkMcStatus():
 
@@ -252,6 +255,54 @@ def conductTracking():
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
 
+def updateWhatsappGrpMembers(cet):
+    
+    dutyGrpId = "120363314173996674@g.us"
+    greenAPI = API.GreenAPI("7103960874", "e226a9f2550045dfb03624e95950d4448ff72a4a96774f7cbf")
+    response = greenAPI.sending.sendMessage(dutyGrpId, "Updating duty commanders. This is an automated message.")
+    
+    #Removal of previous duty members
+    url = "https://api.green-api.com/waInstance7103960874/getGroupData/e226a9f2550045dfb03624e95950d4448ff72a4a96774f7cbf"
+    payload = {
+        "groupId": dutyGrpId  
+    }
+    response = requests.post(url, json=payload)
+    if response.status_code == 200: group_data = response.json()
+    else: 
+        send_tele_msg("Failed to retrieve group data: {}\nAborting removal of previous duty commanders.".format(response.json()))
+        group_data = None
+    if group_data is not None: 
+        allMembers = group_data['participants']
+        for member in allMembers:
+            if member['id'].split('@c.us')[0][2:] not in list(permDutyCmds.values()): 
+                greenAPI.groups.removeGroupParticipant(dutyGrpId, member['id']) 
+
+    # Adding new duty members
+    try: 
+        cetSegments = cet.split('\n')
+        CDS = None
+        PDS7 = None
+        PDS8 = None
+        PDS9 = None
+        for segment in cetSegments:
+            if 'CDS' in segment: CDS = segment.split(': ')[-1]
+            elif 'PDS7' in segment: PDS7 = segment.split(': ')[-1]
+            elif 'PDS8' in segment: PDS8 = segment.split(': ')[-1]
+            elif 'PDS9' in segment: PDS9 = segment.split(': ')[-1]
+        if CDS is None and PDS7 is None and PDS8 is None and PDS9 is None: raise Exception
+    except Exception as e: 
+        send_tele_msg("Unrecognized CET")
+        return
+    
+    if CDS not in charlieDutyCmds: send_tele_msg("CDS {} not found".format(CDS))
+    else: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(charlieDutyCmds[CDS]))
+    if PDS7 not in charlieDutyCmds: send_tele_msg("PDS7 {} not found".format(PDS7))
+    else: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(charlieDutyCmds[PDS7]))
+    if PDS8 not in charlieDutyCmds: send_tele_msg("PDS8 {} not found".format(PDS8))
+    else: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(charlieDutyCmds[PDS8]))
+    if PDS9 not in charlieDutyCmds: send_tele_msg("PDS9 {} not found".format(PDS9))
+    else: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(charlieDutyCmds[PDS9]))
+
 def main():
     while True:
         if datetime.now().hour == 9 and datetime.now().minute == 0:
@@ -268,7 +319,7 @@ def main():
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
-                                    \n/checkall -> Check everything")
+                                    \n/checkall -> Check everything\n/updatedutygrp -> Update duty group members according to sent CET")
 
 async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Checking for MC/Status Lapses...")
@@ -284,6 +335,21 @@ async def checkAllHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text("Checking for conduct tracking updates...")
     conductTracking()
 
+ASK_NAME = 1
+
+async def updateCet(update: Update, context: CallbackContext) -> int:
+    await update.message.reply_text("Send the new CET")
+    return ASK_NAME
+
+async def updateDutyGrp(update: Update, context: CallbackContext) -> int:
+    cet = update.message.text
+    updateWhatsappGrpMembers(cet)
+    return ConversationHandler.END
+
+async def cancel(update: Update, context: CallbackContext) -> int:
+    await update.message.reply_text('Updating cancelled')
+    return ConversationHandler.END
+
 def telegram_manager() -> None:
 
     application = Application.builder().token(TELEGRAM_CHANNEL_BOT_TOKEN).build()
@@ -293,6 +359,18 @@ def telegram_manager() -> None:
     application.add_handler(CommandHandler("checkmcstatus", checkMcStatusHandler))
     application.add_handler(CommandHandler("checkconduct", checkConductHandler))
     application.add_handler(CommandHandler("checkall", checkAllHandler))
+
+    # Add a conversation handler for the new command
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('updatedutygrp', updateCet)],
+        states={
+            ASK_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, updateDutyGrp)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel)],
+    )
+
+    # Add the conversation handler
+    application.add_handler(conv_handler)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
 
