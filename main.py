@@ -366,6 +366,11 @@ async def cancel(update: Update, context: CallbackContext) -> int:
     await update.message.reply_text('Updating cancelled')
     return ConversationHandler.END
 
+async def unknownCommand(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text("Unrecognised command.")
+    await update.message.reply_text("Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
+                                    \n/checkall -> Check everything\n/updatedutygrp -> Update duty group according to CET")
+
 def telegram_manager() -> None:
 
     application = Application.builder().token(TELEGRAM_CHANNEL_BOT_TOKEN).build()
@@ -387,7 +392,7 @@ def telegram_manager() -> None:
 
     # Add the conversation handler
     application.add_handler(conv_handler)
-
+    application.add_handler(MessageHandler(filters.COMMAND, unknownCommand))
     application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
 
 if __name__ == '__main__':
