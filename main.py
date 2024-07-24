@@ -1,7 +1,7 @@
 import time
 import gspread
 from datetime import datetime, timedelta
-from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS
+from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS, DUTY_GRP_ID, ID_INSTANCE, TOKEN_INSTANCE, DUTY_GRP_URL
 import traceback
 
 # PyDrive library has been depracated since 2021
@@ -257,8 +257,8 @@ def conductTracking():
 
 def updateWhatsappGrp(cet):
     
-    dutyGrpId = "120363314173996674@g.us"
-    greenAPI = API.GreenAPI("7103960874", "e226a9f2550045dfb03624e95950d4448ff72a4a96774f7cbf")
+    dutyGrpId = DUTY_GRP_ID
+    greenAPI = API.GreenAPI(ID_INSTANCE, TOKEN_INSTANCE)
 
     # Getting duty commanders and date from CET
     try: 
@@ -285,7 +285,7 @@ def updateWhatsappGrp(cet):
     response = greenAPI.sending.sendMessage(dutyGrpId, "Updating duty group. This is an automated message.")
     
     # Removal of previous duty members not in next duty 
-    url = "https://api.green-api.com/waInstance7103960874/getGroupData/e226a9f2550045dfb03624e95950d4448ff72a4a96774f7cbf"
+    url = DUTY_GRP_URL
     payload = {
         "groupId": dutyGrpId  
     }
