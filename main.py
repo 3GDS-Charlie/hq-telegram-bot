@@ -256,10 +256,13 @@ def checkMcStatus():
 
             timeElapsed = time.time()-startTm
             if timeElapsed > 120: # 2 minutes
-                if not firstMsg: send_tele_msg("This is taking longer than expected\nCurrent progress: {:.1f}%".format((count/len(masterList))*100))
+                if not firstMsg: 
+                    send_tele_msg("This is taking longer than expected\nCurrent progress: {:.1f}%".format((count/len(masterList))*100))
+                    firstMsg = True
                 else: send_tele_msg("Current progress: {:.1f}%".format((count/len(masterList))*100))
                 startTm = time.time() 
 
+        print(foundMcStatusFiles)
         # write lapsed mc/status list to mc/status lapse tracking sheet
         mcLapse.batch_clear(['A2:E1000'])
         statusLapse.batch_clear(['A2:E1000'])
@@ -285,18 +288,16 @@ def checkMcStatus():
                 statusLapse.update_acell('C{}'.format(index), status[2])
                 statusLapse.update_acell('D{}'.format(index), status[3]) 
                 statusLapse.update_acell('E{}'.format(index), status[4])
-                if status in possibleStatusList: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {} (Possible MC found)\n".format(status[1], status[2])])
+                if status in possibleStatusList: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {} (Possible status found)\n".format(status[1], status[2])])
                 else: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {}\n".format(status[1], status[2])])
             send_tele_msg(tele_msg)
     
         # Write checked mc/status files to avoid repeated checks
         mcStatusChecked.batch_clear(['A2:F1000'])
-        updatedcheckedMcStatusList = []
-        updatedcheckedMcStatusList.extend(foundMcStatusFiles)
         for checked in checkedMcStatus:
-            if checked in paradeStateMasterList: updatedcheckedMcStatusList.append(checked)
+            if checked in paradeStateMasterList: foundMcStatusFiles.append(checked)
         
-        for index, status in enumerate(updatedcheckedMcStatusList, start = 2):
+        for index, status in enumerate(foundMcStatusFiles, start = 2):
             mcStatusChecked.update_acell('A{}'.format(index), status[0]) 
             mcStatusChecked.update_acell('B{}'.format(index), status[1]) 
             mcStatusChecked.update_acell('C{}'.format(index), status[2])
