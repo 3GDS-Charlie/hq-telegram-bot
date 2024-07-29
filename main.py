@@ -1,7 +1,7 @@
 import time
 import gspread
 from datetime import datetime, timedelta
-from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS, DUTY_GRP_ID, CHARLIE_Y2_ID, ID_INSTANCE, TOKEN_INSTANCE
+from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS, DUTY_GRP_ID, CHARLIE_Y2_ID, ID_INSTANCE, TOKEN_INSTANCE, CHARLIE_DUTY_CMDS, PERM_DUTY_CMDS
 import traceback
 import copy
 
@@ -37,16 +37,13 @@ from whatsapp_api_client_python import API
 # Telegram Channel
 telegram_bot = telegram.Bot(token=TELEGRAM_CHANNEL_BOT_TOKEN)
 
-monthConversion = {"Jan":"01", "Feb":"02", "Mar":"03", "Apr":"04", "May":"05", "Jun":"06", "Jul":"07", "Aug":"08", "Sep":"09", "Oct":"10", "Nov":"11", "Dec":"12"}
+monthConversion = {"Jan":"01", "January":"01", "Feb":"02", "February":"02", "Mar":"03", "March":"03", "Apr":"04", "April":"04", "May":"05", "Jun":"06", "June":"06", "Jul":"07", "July":"07", "Aug":"08", "August":"08", "Sep":"09", "September":"09", "Oct":"10", "October":"10", "Nov":"11", "November":"11", "Dec":"12", "December":"12"} 
 trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
-charlieDutyCmds = {"3SGZEYEUNG":"87157835", "3SGLIANGDING":"90282045", "3SGELLIOT":"88110850", "3SGJAVEEN":"82316394", "3SGZACH":"98107933", "3SGILLIYAS":"92300624", "3SGDAMIEN":"98999958", "3SGJOASH":"94787064", "3SGJOEL":"93672953", "3SGJOSEPH":"87785701", "3SGMAD":"98250556", "3SGPATRICK":"83740026", "3SGSHENGJUN":"84096282", "3SGAFIF":"91867127", "3SGIRFAN":"97218155", "3SGVIKNESH":"87862607", "3SGKERWIN":"97734298", "3SGNAWFAL":"84282446", "3SGSKY":"88877846", "3SGSRIRAM":"87002363"}
-# 4 PS + 4 PC + 2 HQ Spec
-permDutyCmds = {"3SGZEYEUNG":"87157835", "3SGLIANGDING":"90282045", "3SGKEILOK":"91361826", "3SGGREGORY":"84208408", "3SGKAILE":"90882585", "3SGRONGJIN":"97289218", "ETHANCHAN":"90030559", "JEREMIAH":"87207881", "DAEMON":"91553385", "MAX":"93696236"}
 
-ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
-TELE_ALL_MEMBERS = False # Flag to send tele messages to all listed members
+ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
+TELE_ALL_MEMBERS = True # Flag to send tele messages to all listed members
 
 def send_tele_msg(msg):
     if TELE_ALL_MEMBERS:
@@ -63,7 +60,6 @@ async def send_telegram_bot_msg(msg, channel_id):
 def checkMcStatus():
 
     startTm = time.time()
-
     try:
         # Get Coy MC/Status list from parade state
         gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
@@ -74,11 +70,13 @@ def checkMcStatus():
         sheetMcList = cCoySheet.col_values(9) # column I
         mcStartDates = cCoySheet.col_values(10) # column J
         mcEndDates = cCoySheet.col_values(11) # column K
+        mcReason = cCoySheet.col_values(12) # column L
         platoonStatus = cCoySheet.col_values(27) # column AA
         sectionStatus = cCoySheet.col_values(28) # column AB
         sheetStatusList = cCoySheet.col_values(30) # column AD
         statusStartDates = cCoySheet.col_values(31) # column AE
         statusEndDates = cCoySheet.col_values(32) # column AF
+        statusReason = cCoySheet.col_values(33) # column AG
         assert len(sheetMcList) == len(mcStartDates) == len(mcEndDates), "Num of names and MC dates do not tally"
         assert len(sheetStatusList) == len(statusStartDates) == len(statusEndDates), "Num of names and status dates do not tally"
         foundHeader = False
@@ -87,7 +85,7 @@ def checkMcStatus():
             if not foundHeader and name == 'NAME': 
                 foundHeader = True
                 continue
-            if foundHeader: mcList.append((name, mcStartDates[index], mcEndDates[index], platoonMc[index], sectionMc[index], "MC"))
+            if foundHeader: mcList.append((name, mcStartDates[index], mcEndDates[index], platoonMc[index], sectionMc[index], "MC", mcReason[index]))
 
         foundHeader = False
         statusList = []
@@ -95,11 +93,11 @@ def checkMcStatus():
             if not foundHeader and name == 'NAME': 
                 foundHeader = True
                 continue
-            if foundHeader: statusList.append((name, statusStartDates[index], statusEndDates[index], platoonStatus[index], sectionStatus[index], "Status"))
+            if foundHeader: statusList.append((name, statusStartDates[index], statusEndDates[index], platoonStatus[index], sectionStatus[index], "Status", statusReason[index]))
         
         paradeStateMcList = copy.deepcopy(mcList)
-        paradeStateStatusList = copy.deepcopy(statusList)
-        paradeStateMasterList = paradeStateMcList.extend(paradeStateStatusList)
+        paradeStateMasterList = copy.deepcopy(statusList)
+        paradeStateMasterList.extend(paradeStateMcList)
 
         # read existing MC/Status entries from mc lapse sheet
         mcStatusLapseSheet = gc.open("MC/Status Lapse Tracking")
@@ -109,6 +107,7 @@ def checkMcStatus():
         mcEndDates = mcLapse.col_values(3) # column C
         platoon = mcLapse.col_values(4) # column D
         section = mcLapse.col_values(5) # # column E
+        mcReason = mcLapse.col_values(6) # # column F
         assert len(sheetMcList) == len(mcStartDates) == len(mcEndDates), "Num of names and MC dates do not tally"
         foundHeader = False
         existingMcList = []
@@ -116,7 +115,7 @@ def checkMcStatus():
             if not foundHeader and name == 'NAME': 
                 foundHeader = True
                 continue
-            if foundHeader: existingMcList.append((name, mcStartDates[index], mcEndDates[index], platoon[index], section[index], "MC"))
+            if foundHeader: existingMcList.append((name, mcStartDates[index], mcEndDates[index], platoon[index], section[index], "MC", mcReason[index]))
         mcList.extend(existingMcList)
         mcList = list(set(mcList)) # remove duplicate entries
 
@@ -126,6 +125,7 @@ def checkMcStatus():
         statusEndDates = statusLapse.col_values(3) # column C
         platoon = statusLapse.col_values(4) # column D
         section = statusLapse.col_values(5) # # column E
+        statusReason = statusLapse.col_values(6) # # column F
         assert len(sheetStatusList) == len(statusStartDates) == len(statusEndDates), "Num of names and status dates do not tally"
         foundHeader = False
         existingStatusList = []
@@ -133,7 +133,7 @@ def checkMcStatus():
             if not foundHeader and name == 'NAME': 
                 foundHeader = True
                 continue
-            if foundHeader: existingStatusList.append((name, statusStartDates[index], statusEndDates[index], platoon[index], section[index], "Status"))
+            if foundHeader: existingStatusList.append((name, statusStartDates[index], statusEndDates[index], platoon[index], section[index], "Status", statusReason[index]))
         statusList.extend(existingStatusList)
         statusList = list(set(statusList)) # remove duplicate entries
 
@@ -145,12 +145,14 @@ def checkMcStatus():
         platoon = mcStatusChecked.col_values(4) # column D
         section = mcStatusChecked.col_values(5) # # column E
         type = mcStatusChecked.col_values(6) # # column F
+        mcStatusReason = mcStatusChecked.col_values(7) # # column G
+        foundHeader = False
         checkedMcStatus = []
         for index, name in enumerate(sheetMcStatusList, start = 0):
             if not foundHeader and name == 'NAME': 
                 foundHeader = True
                 continue
-            if foundHeader: checkedMcStatus.append((name, mcStatusStartDates[index], mcStatusEndDates[index], platoon[index], section[index], type[index]))
+            if foundHeader: checkedMcStatus.append((name, mcStatusStartDates[index], mcStatusEndDates[index], platoon[index], section[index], type[index], mcStatusReason[index]))
 
         # get MC/Status files in google drive
         gauth = GoogleAuth()
@@ -169,15 +171,17 @@ def checkMcStatus():
         foundMcStatusFiles = []
         firstMsg = False
         for count, mcStatus in enumerate(masterList, start = 1):
-            if mcStatus in checkedMcStatus: continue
             rank = mcStatus[0].split(' ')[0]
             folderName = mcStatus[0].replace(rank + " ", "") # remove rank from name
             folderList = drive.ListFile({'q': f"title='{folderName}' and trashed=false"}).GetList()
             assert len(folderList) != 0, "No MC folder of the name {} is present".format(folderName)
             assert len(folderList) == 1, "More than one MC folder of the name {} is present".format(folderName)
             folderId = folderList[0]['id']
+            if mcStatus in checkedMcStatus: 
+                foundMcStatusFiles.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
+                continue
             driveMcStatusList = drive.ListFile({'q': f"'{folderId}' in parents and trashed=false"}).GetList()
-            if mcStatus[1] == "#REF!": continue
+            if mcStatus[1] == "#REF!": continue # parade state ref errors. skip iteration
             tmp = mcStatus[1].split(' ')
             tmp[1] = monthConversion[tmp[1]] # convert MMM to MM
             startDate = ''.join(tmp)
@@ -187,6 +191,8 @@ def checkMcStatus():
                 tmp[1] = monthConversion[tmp[1]] # convert MMM to MM
                 endDate = ''.join(tmp)
             else: endDate = mcStatus[2]
+            pattern1 = r"(?<!\d)(\d{1,2}/\d{1,2}/\d{4})(?!\d)"
+            pattern2 = r"(?<!\d)(\d{1,2}-(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)-\d{4})(?!\d)"
             foundMcStatusFile = False
             for driveMcStatus in driveMcStatusList:
                 tmp = driveMcStatus['createdDate'].split('T')[0].split('-')
@@ -224,35 +230,64 @@ def checkMcStatus():
                         file_data = BytesIO(request.execute())
                         imageArray = np.asarray(bytearray(file_data.read()), dtype="uint8")
                         img = cv2.imdecode(imageArray, cv2.IMREAD_COLOR)
+
                     imageText = pytesseract.image_to_string(img)
-                    pattern1 = r"(?<!\d)(\d{1,2}/\d{1,2}/\d{4})(?!\d)"
-                    pattern2 = r"(?<!\d)(\d{1,2}-[A-Za-z]{3}-\d{4})(?!\d)"
                     dates_format1 = re.findall(pattern1, imageText)
                     dates_format2 = re.findall(pattern2, imageText)
                     allDates = []
                     for date in dates_format1:
                         tmp = date.replace("/", "")
+                        tmp = tmp.replace("2023", "23")
                         tmp = tmp.replace("2024", "24")
                         tmp = tmp.replace("2025", "25")
                         allDates.append(tmp)
                     for date in dates_format2:
                         tmp = date.split('-')
-                        tmp[1] = monthConversion[tmp[1]]
+                        try: tmp[1] = monthConversion[tmp[1]]
+                        except KeyError: continue
+                        tmp[2] = tmp[2].replace("2023", "23")
                         tmp[2] = tmp[2].replace("2024", "24")
                         tmp[2] = tmp[2].replace("2025", "25")
                         allDates.append("".join(tmp))
+                    if len(allDates) < 2: # not enough dates detected. try image processing
+                        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                        img = cv2.GaussianBlur(img, (3, 3), 0)
+                        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
+                        img = cv2.dilate(img, kernel, iterations=1)
+                        img = cv2.erode(img, kernel, iterations=1)
+                        imageText = pytesseract.image_to_string(img)
+                        dates_format1 = re.findall(pattern1, imageText)
+                        dates_format2 = re.findall(pattern2, imageText)
+                        allDates = []
+                        for date in dates_format1:
+                            tmp = date.replace("/", "")
+                            tmp = tmp.replace("2023", "23")
+                            tmp = tmp.replace("2024", "24")
+                            tmp = tmp.replace("2025", "25")
+                            allDates.append(tmp)
+                        for date in dates_format2:
+                            tmp = date.split('-')
+                            try: tmp[1] = monthConversion[tmp[1]]
+                            except KeyError: continue
+                            tmp[2] = tmp[2].replace("2023", "23")
+                            tmp[2] = tmp[2].replace("2024", "24")
+                            tmp[2] = tmp[2].replace("2025", "25")
+                            allDates.append("".join(tmp))
+                    # print(allDates)
+                    # cv2.imshow("MC/STATUS", img)
+                    # cv2.waitKey(0)
                     if startDate in allDates and endDate in allDates: 
                         foundMcStatusFile = True
                         break
                     else: 
-                        if mcStatus[5] == "MC": possibleMcList.append(mcStatus)
-                        elif mcStatus[5] == "Status": possibleStatusList.append(mcStatus)
+                        if mcStatus[5] == "MC": possibleMcList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
+                        elif mcStatus[5] == "Status": possibleStatusList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
 
             if not foundMcStatusFile: 
-                if mcStatus[5] == "MC": lapseMcList.append(mcStatus) 
-                elif mcStatus[5] == "Status": lapseStatusList.append(mcStatus)
+                if mcStatus[5] == "MC": lapseMcList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId))) 
+                elif mcStatus[5] == "Status": lapseStatusList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
 
-            else: foundMcStatusFiles.append(mcStatus)
+            else: foundMcStatusFiles.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
 
             timeElapsed = time.time()-startTm
             if timeElapsed > 120: # 2 minutes
@@ -262,48 +297,50 @@ def checkMcStatus():
                 else: send_tele_msg("Current progress: {:.1f}%".format((count/len(masterList))*100))
                 startTm = time.time() 
 
-        print(foundMcStatusFiles)
         # write lapsed mc/status list to mc/status lapse tracking sheet
-        mcLapse.batch_clear(['A2:E1000'])
-        statusLapse.batch_clear(['A2:E1000'])
+        mcLapse.batch_clear(['A2:G1000'])
+        statusLapse.batch_clear(['A2:G1000'])
         if len(lapseMcList) == 0: send_tele_msg("No MC lapses")
         else:
             tele_msg = "Lapsed MC List:"
             for index, mc in enumerate(lapseMcList, start = 2):
-                mcLapse.update_acell('A{}'.format(index), mc[0]) 
-                mcLapse.update_acell('B{}'.format(index), mc[1]) 
-                mcLapse.update_acell('C{}'.format(index), mc[2])
-                mcLapse.update_acell('D{}'.format(index), mc[3]) 
-                mcLapse.update_acell('E{}'.format(index), mc[4])
-                if mc in possibleMcList: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {} (Possible MC found)\n".format(mc[1], mc[2])])
-                else: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {}\n".format(mc[1], mc[2])])
+                mcLapse.update_cells([gspread.cell.Cell(index, 1, mc[0]),
+                                      gspread.cell.Cell(index, 2, mc[1]),
+                                      gspread.cell.Cell(index, 3, mc[2]),
+                                      gspread.cell.Cell(index, 4, mc[3]),
+                                      gspread.cell.Cell(index, 5, mc[4]),
+                                      gspread.cell.Cell(index, 6, mc[6]),
+                                      gspread.cell.Cell(index, 7, mc[7])])
+                if mc in possibleMcList: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {} (Possible MC found)\n{}\n{}\n".format(mc[1], mc[2], mc[6], mc[7])])
+                else: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n{}\n".format(mc[1], mc[2], mc[6], mc[7])])
             send_tele_msg(tele_msg)
         
         if len(lapseStatusList) == 0: send_tele_msg("No Status lapses")
         else:
             tele_msg = "Lapsed Status List:"
             for index, status in enumerate(lapseStatusList, start = 2):
-                statusLapse.update_acell('A{}'.format(index), status[0]) 
-                statusLapse.update_acell('B{}'.format(index), status[1]) 
-                statusLapse.update_acell('C{}'.format(index), status[2])
-                statusLapse.update_acell('D{}'.format(index), status[3]) 
-                statusLapse.update_acell('E{}'.format(index), status[4])
-                if status in possibleStatusList: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {} (Possible status found)\n".format(status[1], status[2])])
-                else: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {}\n".format(status[1], status[2])])
+                statusLapse.update_cells([gspread.cell.Cell(index, 1, status[0]),
+                                          gspread.cell.Cell(index, 2, status[1]),
+                                          gspread.cell.Cell(index, 3, status[2]),
+                                          gspread.cell.Cell(index, 4, status[3]),
+                                          gspread.cell.Cell(index, 5, status[4]),
+                                          gspread.cell.Cell(index, 6, status[6]),
+                                          gspread.cell.Cell(index, 7, status[7])])
+                if status in possibleStatusList: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {} (Possible status found)\n{}\n{}\n".format(status[1], status[2], status[6], status[7])])
+                else: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n{}\n".format(status[1], status[2], status[6], status[7])])
             send_tele_msg(tele_msg)
     
         # Write checked mc/status files to avoid repeated checks
-        mcStatusChecked.batch_clear(['A2:F1000'])
-        for checked in checkedMcStatus:
-            if checked in paradeStateMasterList: foundMcStatusFiles.append(checked)
-        
+        mcStatusChecked.batch_clear(['A2:H1000'])
         for index, status in enumerate(foundMcStatusFiles, start = 2):
-            mcStatusChecked.update_acell('A{}'.format(index), status[0]) 
-            mcStatusChecked.update_acell('B{}'.format(index), status[1]) 
-            mcStatusChecked.update_acell('C{}'.format(index), status[2])
-            mcStatusChecked.update_acell('D{}'.format(index), status[3]) 
-            mcStatusChecked.update_acell('E{}'.format(index), status[4])
-            mcStatusChecked.update_acell('F{}'.format(index), status[5])
+            mcStatusChecked.update_cells([gspread.cell.Cell(index, 1, status[0]), 
+                                          gspread.cell.Cell(index, 2, status[1]),
+                                          gspread.cell.Cell(index, 3, status[2]),
+                                          gspread.cell.Cell(index, 4, status[3]),
+                                          gspread.cell.Cell(index, 5, status[4]),
+                                          gspread.cell.Cell(index, 6, status[5]),
+                                          gspread.cell.Cell(index, 7, status[6]),
+                                          gspread.cell.Cell(index, 8, status[7])])
 
     except Exception as e:
         print("Encountered exception:\n{}".format(traceback.format_exc()))
@@ -403,7 +440,7 @@ def updateWhatsappGrp(cet):
     # Renaming of group name
     if ENABLE_WHATSAPP_API: greenAPI.groups.updateGroupName(dutyGrpId, "{} DUTY CDS/PDS".format(newDate))
     
-    if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(dutyGrpId, "Updating duty group. This is an automated message.")
+    # if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(dutyGrpId, "Updating duty group. This is an automated message.")
     
     # Removal of previous duty members not in next duty 
     url = "https://api.green-api.com/waInstance{}/getGroupData/{}".format(ID_INSTANCE, TOKEN_INSTANCE)
@@ -417,29 +454,29 @@ def updateWhatsappGrp(cet):
         group_data = None
     if group_data is not None: 
         nextDutyCmds = []
-        nextDutyCmds.append(charlieDutyCmds[CDS])
-        nextDutyCmds.append(charlieDutyCmds[PDS7])
-        nextDutyCmds.append(charlieDutyCmds[PDS8])
-        nextDutyCmds.append(charlieDutyCmds[PDS9])
+        nextDutyCmds.append(CHARLIE_DUTY_CMDS[CDS])
+        nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS7])
+        nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS8])
+        nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS9])
         allMembers = group_data['participants']
         for member in allMembers:
             memberId = member['id'].split('@c.us')[0][2:]
-            if memberId not in list(permDutyCmds.values()) and memberId not in nextDutyCmds: 
+            if memberId not in list(PERM_DUTY_CMDS.values()) and memberId not in nextDutyCmds: 
                 if ENABLE_WHATSAPP_API: greenAPI.groups.removeGroupParticipant(dutyGrpId, member['id']) 
 
     # Adding new duty members
-    if CDS not in charlieDutyCmds: send_tele_msg("CDS {} not found".format(CDS))
+    if CDS not in CHARLIE_DUTY_CMDS: send_tele_msg("CDS {} not found".format(CDS))
     else: 
-        if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(charlieDutyCmds[CDS]))
-    if PDS7 not in charlieDutyCmds: send_tele_msg("PDS7 {} not found".format(PDS7))
+        if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[CDS]))
+    if PDS7 not in CHARLIE_DUTY_CMDS: send_tele_msg("PDS7 {} not found".format(PDS7))
     else: 
-        if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(charlieDutyCmds[PDS7]))
-    if PDS8 not in charlieDutyCmds: send_tele_msg("PDS8 {} not found".format(PDS8))
+        if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS7]))
+    if PDS8 not in CHARLIE_DUTY_CMDS: send_tele_msg("PDS8 {} not found".format(PDS8))
     else: 
-        if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(charlieDutyCmds[PDS8]))
-    if PDS9 not in charlieDutyCmds: send_tele_msg("PDS9 {} not found".format(PDS9))
+        if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS8]))
+    if PDS9 not in CHARLIE_DUTY_CMDS: send_tele_msg("PDS9 {} not found".format(PDS9))
     else: 
-        if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(charlieDutyCmds[PDS9]))
+        if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS9]))
 
     # Sending new CET
     if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(dutyGrpId, cet)
@@ -499,7 +536,7 @@ async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                                     \n/checkall -> Check everything\n/updatedutygrp -> Update duty group according to CET")
 
 async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Checking for MC/Status Lapses...")
+    await update.message.reply_text("Checking for MC and Status Lapses...")
     checkMcStatus()
 
 async def checkConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -507,7 +544,7 @@ async def checkConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE
     conductTracking()
 
 async def checkAllHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Checking for MC/Status Lapses...")
+    await update.message.reply_text("Checking for MC and Status Lapses...")
     checkMcStatus()
     await update.message.reply_text("Checking for conduct tracking updates...")
     conductTracking()
@@ -557,7 +594,7 @@ def telegram_manager() -> None:
     application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
 
 if __name__ == '__main__':
-    
+
     send_tele_msg("Welcome to HQ Bot. Strong alone, stronger together. Send /help for list of available commands.")
     send_tele_msg("CDS reminder for report sick parade state scheduled at 0530. Send the latest CET using /updatedutygrp to schedule during FP")
     cetQueue = multiprocessing.Queue()

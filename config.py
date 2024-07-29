@@ -31,3 +31,39 @@ DUTY_GRP_ID = os.getenv("DUTY_GROUP_ID")
 CHARLIE_Y2_ID = os.getenv("CHARLIE_Y2_GROUP_ID")
 ID_INSTANCE = os.getenv("API_ID_INSTANCE")
 TOKEN_INSTANCE = os.getenv("API_TOKEN_INSTANCE")
+
+CHARLIE_DUTY_CMDS = {"3SGZEYEUNG":os.getenv("ZEYEUNG_NUMBER"), 
+                      "3SGLIANGDING":os.getenv("LIANGDING_NUMBER"), 
+                      "3SGELLIOT":os.getenv("ELLIOT_NUMBER"), 
+                      "3SGJAVEEN":os.getenv("JAVEEN_NUMBER"), 
+                      "3SGZACH":os.getenv("ZACH_NUMBER"), 
+                      "3SGILLIYAS":os.getenv("ILLIYAS_NUMBER"), 
+                      "3SGDAMIEN":os.getenv("DAMIEN_NUMBER"), 
+                      "3SGJOASH":os.getenv("JOASH_NUMBER"), 
+                      "3SGJOEL":os.getenv("JOEL_NUMBER"), 
+                      "3SGJOSEPH":os.getenv("JOSEPH_NUMBER"), 
+                      "3SGMUHAMMAD":os.getenv("MAD_NUMBER"),
+                      "3SGMAD":os.getenv("MAD_NUMBER"), 
+                      "3SGPATRICK":os.getenv("PATRICK_NUMBER"), 
+                      "3SGSHENGJUN":os.getenv("SHENGJUN_NUMBER"), 
+                      "3SGAFIF":os.getenv("AFIF_NUMBER"), 
+                      "3SGIRFAN":os.getenv("IRFAN_NUMBER"), 
+                      "3SGVIKNESH":os.getenv("VIKNESH_NUMBER"), 
+                      "3SGKERWIN":os.getenv("KERWIN_NUMBER"), 
+                      "3SGNAWFAL":os.getenv("NAWFAL_NUMBER"), 
+                      "3SGSKY":os.getenv("SKY_NUMBER"), 
+                      "3SGSRIRAM":os.getenv("SRIRAM_NUMBER")
+}
+
+# 4 PS + 4 PC + 2 HQ Spec
+PERM_DUTY_CMDS = {"3SGZEYEUNG":os.getenv("ZEYEUNG_NUMBER"), 
+                  "3SGLIANGDING":os.getenv("LIANGDING_NUMBER"), 
+                  "3SGKEILOK":os.getenv("KEILOK_NUMBER"), 
+                  "3SGGREGORY":os.getenv("GREGORY_NUMBER"), 
+                  "3SGKAILE":os.getenv("KAILE_NUMBER"), 
+                  "3SGRONGJIN":os.getenv("RONGJIN_NUMBER"), 
+                  "ETHANCHAN":os.getenv("ETHANCHAN_NUMBER"), 
+                  "JEREMIAH":os.getenv("JEREMIAH_NUMBER"), 
+                  "DAEMON":os.getenv("DAEMON_NUMBER"), 
+                  "MAX":os.getenv("MAX_NUMBER")
+}
