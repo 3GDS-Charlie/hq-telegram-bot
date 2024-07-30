@@ -603,6 +603,7 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
+    
     send_tele_msg("Welcome to HQ Bot. Strong alone, stronger together. Send /help for list of available commands.")
     send_tele_msg("CDS reminder for report sick parade state scheduled at 0530. Send the latest CET using /updatedutygrp to schedule during FP")
     cetQueue = multiprocessing.Queue()
