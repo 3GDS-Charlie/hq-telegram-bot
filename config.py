@@ -66,5 +66,6 @@ PERM_DUTY_CMDS = {"3SGZEYEUNG":os.getenv("ZEYEUNG_NUMBER"),
                   "ETHANCHAN":os.getenv("ETHANCHAN_NUMBER"), 
                   "JEREMIAH":os.getenv("JEREMIAH_NUMBER"), 
                   "DAEMON":os.getenv("DAEMON_NUMBER"), 
-                  "MAX":os.getenv("MAX_NUMBER")
+                  "MAX":os.getenv("MAX_NUMBER"),
+                  "AJLOY":os.getenv("AJLOY_NUMBER")
 }
