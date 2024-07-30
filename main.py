@@ -488,6 +488,7 @@ def main(cetQ):
     charlieY2Id = CHARLIE_Y2_ID
     greenAPI = API.GreenAPI(ID_INSTANCE, TOKEN_INSTANCE)
     fpDateTime = None
+    sentCdsReminder = False
     weekDay = [1, 2, 3, 4, 5]
 
     while True:
@@ -507,6 +508,7 @@ def main(cetQ):
         # Default time 0530 if no CET received otherwise during FP of CET
 
         while not cetQ.empty(): 
+            sentCdsReminder = False
             fpDateTime = cetQ.get()
             # got latest CET
             # check whether date and time is correct
@@ -517,19 +519,25 @@ def main(cetQ):
         # there was a sent CET since the start of the bot
         if fpDateTime is not None:
             # send reminder during weekdays when it hits the FP date and time of sent CET
-            if datetime.now().isoweekday() in weekDay and datetime.now().day == int(fpDateTime[0][:2]) and datetime.now().hour == int(fpDateTime[1][:2]) and datetime.now().minute == int(fpDateTime[1][-2:]):
+            if datetime.now().isoweekday() in weekDay and datetime.now().day == int(fpDateTime[0][:2]) and datetime.now().hour == int(fpDateTime[1][:2]) and datetime.now().minute == int(fpDateTime[1][-2:]) and not sentCdsReminder:
+                send_tele_msg("Sending automated CDS reminder")
                 if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE")
+                sentCdsReminder = True
             else:
                 # if it is 0530 and the latest sent CET is still not current, send reminder
-                if datetime.now().isoweekday() in weekDay and datetime.now().day != int(fpDateTime[0][:2]) and datetime.now().hour == 5 and datetime.now().minute == 30:
+                if datetime.now().isoweekday() in weekDay and datetime.now().day != int(fpDateTime[0][:2]) and datetime.now().hour == 5 and datetime.now().minute == 30 and not sentCdsReminder:
+                    send_tele_msg("Sending automated CDS reminder")
                     if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE")
+                    sentCdsReminder = True
         else: 
             # no sent CET since the start of the bot
             # send reminder during weekdays at default timing of 0530
-            if datetime.now().isoweekday() in weekDay and datetime.now().hour == 5 and datetime.now().minute == 30:
+            if datetime.now().isoweekday() in weekDay and datetime.now().hour == 5 and datetime.now().minute == 30 and not sentCdsReminder:
+                send_tele_msg("Sending automated CDS reminder")
                 if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE")
+                sentCdsReminder = True
 
-        time.sleep(60)
+        time.sleep(5)
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
