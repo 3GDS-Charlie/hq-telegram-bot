@@ -495,11 +495,11 @@ def main(cetQ):
         if datetime.now().hour == 9 and datetime.now().minute == 0:
             send_tele_msg("Checking for MC Lapses...")
             checkMcStatus()
-        target_time_today = datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
+        # target_time_today = datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
 
         # If the target time is earlier in the day, add a day to the target time
-        if datetime.now() >= target_time_today:
-            target_time_today += timedelta(days=1)
+        # if datetime.now() >= target_time_today:
+        #     target_time_today += timedelta(days=1)
 
         # time_difference = (target_time_today - datetime.now()).total_seconds()
         
@@ -515,7 +515,7 @@ def main(cetQ):
                 else: send_tele_msg("Invalid CET date. CDS reminder for report sick parade state scheduled at 0530")
 
         # there was a sent CET since the start of the bot
-        if fpDateTime is not None: 
+        if fpDateTime is not None:
             # send reminder during weekdays when it hits the FP date and time of sent CET
             if datetime.now().isoweekday() in weekDay and datetime.now().day == int(fpDateTime[0][:2]) and datetime.now().hour == int(fpDateTime[1][:2]) and datetime.now().minute == int(fpDateTime[1][-2:]):
                 if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE")
@@ -529,7 +529,7 @@ def main(cetQ):
             if datetime.now().isoweekday() in weekDay and datetime.now().hour == 5 and datetime.now().minute == 30:
                 if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE")
 
-        time.sleep(10)
+        time.sleep(60)
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
