@@ -42,8 +42,8 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
-TELE_ALL_MEMBERS = True # Flag to send tele messages to all listed members
+ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
+TELE_ALL_MEMBERS = False # Flag to send tele messages to all listed members
 
 def send_tele_msg(msg):
     if TELE_ALL_MEMBERS:
@@ -452,6 +452,7 @@ def updateWhatsappGrp(cet):
     else: 
         send_tele_msg("Failed to retrieve group data: {}\nAborting updating duty group.".format(response.json()))
         group_data = None
+        return
     if group_data is not None: 
         nextDutyCmds = []
         nextDutyCmds.append(CHARLIE_DUTY_CMDS[CDS])
@@ -480,7 +481,27 @@ def updateWhatsappGrp(cet):
 
     # Sending new CET
     if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(dutyGrpId, cet)
-    
+
+    # Checking whether all members were added successfully
+    url = "https://api.green-api.com/waInstance{}/getGroupData/{}".format(ID_INSTANCE, TOKEN_INSTANCE)
+    payload = {
+        "groupId": dutyGrpId  
+    }
+    response = requests.post(url, json=payload)
+    if response.status_code == 200: group_data = response.json()
+    else: 
+        send_tele_msg("Unable to check whether all members were added successfully: {}.".format(response.json()))
+        group_data = None
+    if group_data is not None: 
+        allMembers = group_data['participants']
+        allMemberNumbers = []
+        for member in allMembers: allMemberNumbers.append(member['id'].split('@c.us')[0][2:])
+        for memberId in nextDutyCmds:
+            if memberId not in allMemberNumbers:
+                for name, number in CHARLIE_DUTY_CMDS.items():
+                    if memberId == number: 
+                        send_tele_msg("{} was not added succesfully".format(name.replace("3SG", "")))
+                        break
     send_tele_msg("Updated duty group")
 
 def main(cetQ):
@@ -603,7 +624,6 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
-    
     send_tele_msg("Welcome to HQ Bot. Strong alone, stronger together. Send /help for list of available commands.")
     send_tele_msg("CDS reminder for report sick parade state scheduled at 0530. Send the latest CET using /updatedutygrp to schedule during FP")
     cetQueue = multiprocessing.Queue()
