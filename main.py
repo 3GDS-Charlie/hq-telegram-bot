@@ -539,7 +539,7 @@ def main(cetQ):
             # got latest CET
             # check whether date and time is correct
             if cetQ.empty(): 
-                if datetime.strptime(fpDateTime[0], "%d%m%y") > datetime.now(): send_tele_msg("CDS reminder for report sick parade state scheduled at {} {}".format(fpDateTime[0], fpDateTime[1]))
+                if datetime.strptime(fpDateTime[0]+fpDateTime[1], "%d%m%y%H%M") > datetime.now(): send_tele_msg("CDS reminder for report sick parade state scheduled at {} {}".format(fpDateTime[0], fpDateTime[1]))
                 else: send_tele_msg("Invalid CET date. CDS reminder for report sick parade state scheduled at 0530")
 
         # there was a sent CET since the start of the bot
