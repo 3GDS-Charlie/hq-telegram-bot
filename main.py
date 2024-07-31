@@ -58,7 +58,6 @@ async def send_telegram_bot_msg(msg, channel_id):
     try: 
         await telegram_bot.send_message(chat_id = channel_id, text = msg, read_timeout=5)
     except telegram.error.TimedOut:
-        print("Request timed out. Retrying...")
         await asyncio.sleep(5)
         await telegram_bot.send_message(chat_id = channel_id, text = msg, read_timeout=5)
 
