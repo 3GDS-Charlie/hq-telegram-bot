@@ -504,7 +504,7 @@ def updateWhatsappGrp(cet):
             if memberId not in allMemberNumbers:
                 for name, number in CHARLIE_DUTY_CMDS.items():
                     if memberId == number: 
-                        send_tele_msg("{} was not added succesfully".format(name.replace("3SG", "")))
+                        send_tele_msg("{} - {} was not added succesfully".format(name.replace("3SG", ""), memberId))
                         break
     send_tele_msg("Updated duty group")
 
