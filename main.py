@@ -20,6 +20,7 @@ import asyncio
 import nest_asyncio
 nest_asyncio.apply() # patch asyncio
 import multiprocessing
+MAX_MESSAGE_LENGTH = 4096
 
 import pytesseract
 import cv2
@@ -332,7 +333,9 @@ def checkMcStatus():
                                           gspread.cell.Cell(index, 7, status[7])])
                 if status in possibleStatusList: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {} (Possible status found)\n{}\n{}\n".format(status[1], status[2], status[6], status[7])])
                 else: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n{}\n".format(status[1], status[2], status[6], status[7])])
-            send_tele_msg(tele_msg)
+                if len(tele_msg) > MAX_MESSAGE_LENGTH-1000:
+                    send_tele_msg(tele_msg)
+                    tele_msg = "Lapsed Status List:"
     
         # Write checked mc/status files to avoid repeated checks
         mcStatusChecked.batch_clear(['A2:H1000'])
