@@ -336,6 +336,7 @@ def checkMcStatus():
                 if len(tele_msg) > MAX_MESSAGE_LENGTH-1000:
                     send_tele_msg(tele_msg)
                     tele_msg = "Lapsed Status List:"
+            send_tele_msg(tele_msg)
     
         # Write checked mc/status files to avoid repeated checks
         mcStatusChecked.batch_clear(['A2:H1000'])
