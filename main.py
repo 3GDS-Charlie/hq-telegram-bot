@@ -43,8 +43,8 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
-TELE_ALL_MEMBERS = True # Flag to send tele messages to all listed members
+ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
+TELE_ALL_MEMBERS = False # Flag to send tele messages to all listed members
 
 def send_tele_msg(msg):
     if TELE_ALL_MEMBERS:
@@ -361,7 +361,7 @@ def conductTracking():
         sheet = gc.open("Charlie Conduct Tracking")
         conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
         allDates = conductTrackingSheet.row_values(2)
-        currentDate = "{}{}{}".format(str(datetime.now().day), (("0" + str(datetime.now().month)) if datetime.now().month < 10 else (str(datetime.now().month))), str(datetime.now().year).replace("20", ""))
+        currentDate = "{}{}{}".format(("0" + str(datetime.now().day)) if datetime.now().day < 10 else (str(datetime.now().day)), (("0" + str(datetime.now().month)) if datetime.now().month < 10 else (str(datetime.now().month))), str(datetime.now().year).replace("20", ""))
         colIndexes = []
         foundIndexes = False
         for index, date in enumerate(allDates, start = 1):
@@ -447,9 +447,7 @@ def updateWhatsappGrp(cet):
     
     # Renaming of group name
     if ENABLE_WHATSAPP_API: greenAPI.groups.updateGroupName(dutyGrpId, "{} DUTY CDS/PDS".format(newDate))
-    
-    # if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(dutyGrpId, "Updating duty group. This is an automated message.")
-    
+        
     # Removal of previous duty members not in next duty 
     url = "https://api.green-api.com/waInstance{}/getGroupData/{}".format(ID_INSTANCE, TOKEN_INSTANCE)
     payload = {
@@ -463,10 +461,14 @@ def updateWhatsappGrp(cet):
         return
     if group_data is not None: 
         nextDutyCmds = []
-        nextDutyCmds.append(CHARLIE_DUTY_CMDS[CDS])
-        nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS7])
-        nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS8])
-        nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS9])
+        try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[CDS])
+        except KeyError: send_tele_msg("Unknown CDS: {}".format(CDS))
+        try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS7])
+        except KeyError: send_tele_msg("Unknown PDS7: {}".format(PDS7))
+        try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS8])
+        except KeyError: send_tele_msg("Unknown PDS8: {}".format(PDS8))
+        try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS9])
+        except KeyError: send_tele_msg("Unknown PDS9: {}".format(PDS9))
         allMembers = group_data['participants']
         for member in allMembers:
             memberId = member['id'].split('@c.us')[0][2:]
