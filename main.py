@@ -1,10 +1,14 @@
+# General Libraries
+import json
 import time
 import gspread
+from gspread_formatting import *
 from datetime import datetime, timedelta
-from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS, DUTY_GRP_ID, CHARLIE_Y2_ID, ID_INSTANCE, TOKEN_INSTANCE, CHARLIE_DUTY_CMDS, PERM_DUTY_CMDS
+from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS, DUTY_GRP_ID, CHARLIE_Y2_ID, ID_INSTANCE, TOKEN_INSTANCE, CHARLIE_DUTY_CMDS, PERM_DUTY_CMDS, TIMETREE_USERNAME, TIMETREE_PASSWORD, TIMETREE_CALENDAR_ID
 import traceback
 import copy
 
+# Google Drive API
 # PyDrive library has been depracated since 2021
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
@@ -13,6 +17,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
+# Telegram API
 import telegram
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackContext, ConversationHandler, MessageHandler, filters
@@ -22,6 +27,7 @@ nest_asyncio.apply() # patch asyncio
 import multiprocessing
 MAX_MESSAGE_LENGTH = 4096
 
+# Pytesseract OCR + Super Resolution Libraries
 import pytesseract
 import cv2
 import numpy as np
@@ -32,8 +38,16 @@ import pyheif
 from PIL import Image
 import re
 
+# WhatsApp API
 import requests
 from whatsapp_api_client_python import API
+
+# Intercepting TimeTree Responses
+from pyppeteer import launch
+from pyppeteer.errors import TimeoutError
+from zoneinfo import ZoneInfo
+foundResponse = False # Timetree response interception
+responseContent = None
 
 # Telegram Channel
 telegram_bot = telegram.Bot(token=TELEGRAM_CHANNEL_BOT_TOKEN)
@@ -43,8 +57,8 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
-TELE_ALL_MEMBERS = False # Flag to send tele messages to all listed members
+ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
+TELE_ALL_MEMBERS = True # Flag to send tele messages to all listed members
 
 def send_tele_msg(msg):
     if TELE_ALL_MEMBERS:
@@ -61,6 +75,477 @@ async def send_telegram_bot_msg(msg, channel_id):
     except telegram.error.TimedOut:
         await asyncio.sleep(5)
         await telegram_bot.send_message(chat_id = channel_id, text = msg, read_timeout=5)
+
+async def intercept_response(response):
+    global foundResponse, responseContent
+    if response.url == "https://timetreeapp.com/api/v1/calendar/{}/events/sync".format(TIMETREE_CALENDAR_ID):
+        try: responseContent = await response.text()
+        except Exception as e: print(f"Error fetching response body: {e}")
+        foundResponse = True
+
+async def timetreeResponses():
+    global foundResponse
+    browser = await launch(headless=True)
+    page = await browser.newPage()
+    
+    # Intercept network responses
+    page.on('response', lambda response: asyncio.ensure_future(intercept_response(response)))
+
+    await page.goto('https://timetreeapp.com/signin?locale=en')
+    try:
+        await page.waitForSelector('input[name="email"]', timeout=10000)
+        await page.type('input[name="email"]', TIMETREE_USERNAME)
+        await page.waitForSelector('input[name="password"]', timeout=10000)
+        await page.type('input[name="password"]', TIMETREE_PASSWORD)
+        await page.waitForSelector('button[type="submit"]', timeout=10000)
+        await page.click('button[type="submit"]')
+        await page.waitForNavigation(timeout=10000)
+    except TimeoutError as e: print(f"Error: {e}")
+    
+    while not foundResponse:await asyncio.sleep(1)
+    await browser.close()
+
+def convertTimestampToDatetime(timestamp, tzinfo=ZoneInfo("Asia/Singapore")):
+    
+    """
+        timestamp: Int or str object
+        Returns datetime object.
+    """
+    
+    if isinstance(timestamp, str): timestamp = int(timestamp)
+
+    if timestamp >= 0:
+        timestamp = timestamp/1000
+        return datetime.fromtimestamp(timestamp, tzinfo)
+    return datetime.fromtimestamp(0, tzinfo) + timedelta(seconds=int(timestamp))
+
+def insertConductTracking(conductDate: str, conductName: str, conductColumn: int):
+    
+    gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
+    sheet = gc.open("Charlie Conduct Tracking")
+    conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
+
+    startRow = 5
+    endRow = 129
+
+    def columnIndexToLetter(index):
+        letter = ''
+        while index > 0:
+            index, remainder = divmod(index - 1, 26)
+            letter = chr(65 + remainder) + letter
+        return letter
+
+    actualLetter = columnIndexToLetter(conductColumn)
+    adjLetter = columnIndexToLetter(conductColumn+1)
+
+    # clear the two columns to be written
+    conductTrackingSheet.batch_clear(["{}:{}".format(actualLetter, adjLetter)])
+    requests = []
+    requests.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": conductTrackingSheet.id,  # Replace with your sheet ID
+                "startRowIndex": 0,
+                "endRowIndex": 1000,  # Adjust as needed
+                "startColumnIndex": conductColumn-1,
+                "endColumnIndex": conductColumn+1
+            },
+            "cell": {
+                "userEnteredFormat": {}
+            },
+            "fields": "userEnteredFormat"
+        }
+    })
+    rulesToRemove = []
+    rules = get_conditional_format_rules(conductTrackingSheet)
+    for index, rule in enumerate(rules, start = 0):
+        ranges = rule.ranges
+        if len(ranges) == 1 and ranges[0].startColumnIndex == conductColumn-1 and ranges[0].endColumnIndex == conductColumn: rulesToRemove.append(index)
+    rulesToRemove.reverse()
+    for idx in rulesToRemove:
+        requests.append({
+            "deleteConditionalFormatRule": {
+                "sheetId": conductTrackingSheet.id,
+                "index": idx
+            }
+        })
+    body = {'requests': requests}
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/spreadsheets'])
+    service = build('sheets', 'v4', credentials=creds)
+    response = service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
+
+    grayCellBackground = CellFormat(backgroundColor=Color(0.85, 0.85, 0.85, 1))  
+    redCellBackground = CellFormat(backgroundColor=Color(0.92, 0.27, 0.2, 1))
+    greenCellBackground = CellFormat(backgroundColor=Color(0.2, 0.66, 0.33, 1))
+
+    cellFormat = CellFormat(textFormat=TextFormat(bold=True), horizontalAlignment="CENTER", wrapStrategy="WRAP")
+    format_cell_range(conductTrackingSheet, "{}2:{}4".format(actualLetter, actualLetter), cellFormat)
+    conductTrackingSheet.update_cells([gspread.cell.Cell(2, conductColumn, conductDate),
+                                       gspread.cell.Cell(4, conductColumn, conductName)])
+    conductTrackingSheet.update_cell(3, conductColumn, '=IF(REGEXMATCH({}4, "HAPT"), "HAPT", "NON_HAPT")'.format(actualLetter))
+
+    set_data_validation_for_cell_range(conductTrackingSheet, "{}{}:{}{}".format(actualLetter, startRow, actualLetter, endRow), DataValidationRule(BooleanCondition("BOOLEAN", []), showCustomUi=True)) 
+    conductTrackingSheet.update(range_name="{}{}:{}{}".format(actualLetter, startRow, actualLetter, endRow), values=[[False] for _ in range(endRow - startRow + 1)])
+    
+    requests = []
+    requests.append({
+        "addConditionalFormatRule": {
+            "rule": {
+                "booleanRule": {
+                    "condition": {
+                        "type": "TEXT_EQ",
+                        "values": [{"userEnteredValue": "TRUE"}]
+                    },
+                    "format": {
+                        "backgroundColor": {"red": 0.2, "green": 0.66, "blue": 0.33}  # Green color 0.2, 0.66, 0.33
+                    }
+                },
+                "ranges": [{
+                    "sheetId": conductTrackingSheet.id,
+                    "startRowIndex": startRow-1,
+                    "endRowIndex": endRow,
+                    "startColumnIndex": conductColumn - 1,
+                    "endColumnIndex": conductColumn
+                }]
+            },
+            "index": 0
+        }
+    })
+    # Rule to turn cells red when FALSE
+    requests.append({
+        "addConditionalFormatRule": {
+            "rule": {
+                "booleanRule": {
+                    "condition": {
+                        "type": "TEXT_EQ",
+                        "values": [{"userEnteredValue": "FALSE"}]
+                    },
+                    "format": {
+                        "backgroundColor": {"red": 0.92, "green": 0.27, "blue": 0.2}  # Red color 0.92, 0.27, 0.2
+                    }
+                },
+                "ranges": [{
+                    "sheetId": conductTrackingSheet.id,
+                    "startRowIndex": startRow-1,
+                    "endRowIndex": endRow,
+                    "startColumnIndex": conductColumn - 1,
+                    "endColumnIndex": conductColumn
+                }]
+            },
+            "index": 1
+        }
+    })
+    ranges = [
+        {
+            "sheetId": conductTrackingSheet.id,  
+            "startRowIndex": 1,
+            "endRowIndex": 2,
+            "startColumnIndex": conductColumn-1,
+            "endColumnIndex": conductColumn
+        },
+        {
+            "sheetId": conductTrackingSheet.id, 
+            "startRowIndex": 2,
+            "endRowIndex": 3,
+            "startColumnIndex": conductColumn-1,
+            "endColumnIndex": conductColumn
+        },
+        {
+            "sheetId": conductTrackingSheet.id, 
+            "startRowIndex": 3,
+            "endRowIndex": 4,
+            "startColumnIndex": conductColumn-1,
+            "endColumnIndex": conductColumn
+        },
+        {
+            "sheetId": conductTrackingSheet.id,  
+            "startRowIndex": 1,
+            "endRowIndex": 2,
+            "startColumnIndex": conductColumn,
+            "endColumnIndex": conductColumn+1
+        },
+        {
+            "sheetId": conductTrackingSheet.id, 
+            "startRowIndex": 2,
+            "endRowIndex": 3,
+            "startColumnIndex": conductColumn,
+            "endColumnIndex": conductColumn+1
+        },
+        {
+            "sheetId": conductTrackingSheet.id, 
+            "startRowIndex": 3,
+            "endRowIndex": 4,
+            "startColumnIndex": conductColumn,
+            "endColumnIndex": conductColumn+1
+        }
+    ]
+
+    border_settings = {
+        "top": {
+            "style": "SOLID",
+            "color": {
+                "red": 0,
+                "green": 0,
+                "blue": 0
+            }
+        },
+        "bottom": {
+            "style": "SOLID",
+            "color": {
+                "red": 0,
+                "green": 0,
+                "blue": 0
+            }
+        },
+        "left": {
+            "style": "SOLID",
+            "color": {
+                "red": 0,
+                "green": 0,
+                "blue": 0
+            }
+        },
+        "right": {
+            "style": "SOLID",
+            "color": {
+                "red": 0,
+                "green": 0,
+                "blue": 0
+            }
+        }
+    }
+
+    for rng in ranges:
+        requests.append({
+            "updateBorders": {
+                "range": rng,
+                **border_settings
+            }
+        })
+    
+    ranges = [
+        {
+            "sheetId": conductTrackingSheet.id, 
+            "startRowIndex": 17,
+            "endRowIndex": 18,
+            "startColumnIndex": conductColumn-1,
+            "endColumnIndex": conductColumn
+        },
+        {
+            "sheetId": conductTrackingSheet.id, 
+            "startRowIndex": 17,
+            "endRowIndex": 18,
+            "startColumnIndex": conductColumn,
+            "endColumnIndex": conductColumn+1
+        },
+        {
+            "sheetId": conductTrackingSheet.id, 
+            "startRowIndex": 42,
+            "endRowIndex": 43,
+            "startColumnIndex": conductColumn-1,
+            "endColumnIndex": conductColumn
+        },
+        {
+            "sheetId": conductTrackingSheet.id, 
+            "startRowIndex": 42,
+            "endRowIndex": 43,
+            "startColumnIndex": conductColumn,
+            "endColumnIndex": conductColumn+1
+        },
+        {
+            "sheetId": conductTrackingSheet.id, 
+            "startRowIndex": 67,
+            "endRowIndex": 68,
+            "startColumnIndex": conductColumn-1,
+            "endColumnIndex": conductColumn
+        },
+        {
+            "sheetId": conductTrackingSheet.id, 
+            "startRowIndex": 67,
+            "endRowIndex": 68,
+            "startColumnIndex": conductColumn,
+            "endColumnIndex": conductColumn+1
+        },
+        {
+            "sheetId": conductTrackingSheet.id, 
+            "startRowIndex": 93,
+            "endRowIndex": 94,
+            "startColumnIndex": conductColumn-1,
+            "endColumnIndex": conductColumn
+        },
+        {
+            "sheetId": conductTrackingSheet.id, 
+            "startRowIndex": 93,
+            "endRowIndex": 94,
+            "startColumnIndex": conductColumn,
+            "endColumnIndex": conductColumn+1
+        }
+    ]
+
+    border_settings = {
+        "bottom": {
+            "style": "SOLID",
+            "color": {
+                "red": 0,
+                "green": 0,
+                "blue": 0
+            }
+        }
+    }
+    for rng in ranges:
+        requests.append({
+            "updateBorders": {
+                "range": rng,
+                **border_settings
+            }
+        })
+
+    body = {'requests': requests}
+    response = service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
+    format_cell_range(conductTrackingSheet, "{}{}:{}{}".format(adjLetter, startRow, adjLetter, endRow), grayCellBackground)
+
+def updateConductTracking():
+    try: 
+        global foundResponse, responseContent
+        foundResponse = False
+        asyncio.get_event_loop().run_until_complete(timetreeResponses())
+
+        if responseContent is not None: 
+            responseContent = json.loads(responseContent) # conversion from str response to a dict
+            events = responseContent['events']
+            futureEvents = dict()
+            pattern = r'(?<!\d)/(?!\d)'
+            for event in events:
+                # Look for events that are labelled PT activities (id:8) starting from today
+                if event['label_id'] == 8 and convertTimestampToDatetime(event['start_at']).date()>=datetime.now(tz=ZoneInfo("Asia/Singapore")).date():
+                    startDateTime = convertTimestampToDatetime(event['start_at'])
+                    startDateTime = "{}{}{}".format(("0" + str(startDateTime.day)) if startDateTime.day < 10 else (str(startDateTime.day)), (("0" + str(startDateTime.month)) if startDateTime.month < 10 else (str(startDateTime.month))), str(startDateTime.year).replace("20", ""))
+                    slave = re.split(pattern, event['title']) # if there are multiple conducts i.e make up training with main body training
+                    if startDateTime not in futureEvents: futureEvents[startDateTime] = []
+                    for i in slave:
+                        futureEvents[startDateTime].append(i)
+
+        changesMade = True
+        gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
+        sheet = gc.open("Charlie Conduct Tracking")
+        while changesMade:
+            changesMade = False
+            conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
+            allDates = conductTrackingSheet.row_values(2)
+            allConducts = conductTrackingSheet.row_values(4)
+            prevDateTimeObject = None
+            currentIndex = None
+            futureEvents = dict(sorted(futureEvents.items(), key=lambda item: datetime.strptime(item[0], "%d%m%y")))
+            for timetreeDate, timetreeConducts in futureEvents.items():
+                for timetreeConduct in timetreeConducts:
+                    timetreeDateObject = datetime.strptime(timetreeDate.replace(" ", ""), "%d%m%y")
+                    correctConduct = False
+                    for index, date in enumerate(allDates, start = 0):
+                        if date == '': continue
+                        if currentIndex is not None and index<=currentIndex: continue
+                        dateObject = datetime.strptime(date.replace(" ", ""), "%d%m%y")
+                        if dateObject.date() < datetime.now().date(): continue
+                        else: currentIndex = index
+                        if prevDateTimeObject is not None and dateObject < prevDateTimeObject: continue
+
+                        conduct = allConducts[index]
+                        if "SST" in conduct: continue # ignore SSTs
+
+                        conduct = conduct.replace(" (HAPT)", "")
+                        conduct = conduct.replace("(HAPT)", "")
+                        conduct = conduct.replace("\n", "")
+                        slave = copy.deepcopy(conduct)
+                        conduct = conduct.replace(" ", "")
+                        if date == timetreeDate and conduct in timetreeConduct.replace(" ", ""): 
+                            # print("Correct: ", slave, date) # no actions needed
+                            correctConduct = True
+                            break
+                        elif date == timetreeDate and conduct not in timetreeConduct.replace(" ", ""):
+                            # print("Not on timetree: ", slave, date) # conduct that is not on timetree
+                            send_tele_msg("Removing {} on {} as it is not on TimeTree".format(slave, date))
+                            conductTrackingSheet.delete_columns(index+1, index+2)
+                            changesMade = True
+                            break
+                        elif dateObject > timetreeDateObject: # conduct not added to conduct tracking sheets
+                            # print("Missing conducts: ", timetreeConduct, timetreeDate)
+                            send_tele_msg("Adding {} on {}".format(timetreeConduct, timetreeDate))
+                            requests = [{
+                                'insertDimension': {
+                                    'range': {
+                                        'sheetId': conductTrackingSheet.id,
+                                        'dimension': 'COLUMNS',
+                                        'startIndex': index, 
+                                        'endIndex': index+1
+                                    },
+                                    'inheritFromBefore': False
+                                }
+                            }]
+                            requests.append({
+                                'insertDimension': {
+                                    'range': {
+                                        'sheetId': conductTrackingSheet.id,
+                                        'dimension': 'COLUMNS',
+                                        'startIndex': index+1, 
+                                        'endIndex': index+2
+                                    },
+                                    'inheritFromBefore': False
+                                }
+                            })
+                            body = {'requests': requests}
+                            creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/spreadsheets'])
+                            service = build('sheets', 'v4', credentials=creds)
+                            response = service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
+                            insertConductTracking(timetreeDate, timetreeConduct+"(HAPT)", index+1)
+                            changesMade = True
+                            break
+                        elif date != timetreeDate and conduct not in timetreeConduct.replace(" ", ""):
+                            # print("Not on timetree: ", slave, date) # conduct that is not on timetree
+                            send_tele_msg("Removing {} on {} as it is not on TimeTree".format(slave, date))
+                            conductTrackingSheet.delete_columns(index+1, index+2)
+                            changesMade = True
+                            # do not break here 
+                        
+                    if changesMade: break
+                    
+                    # latest conduct is before current date or is already correct
+                    if currentIndex is None: currentIndex = len(allDates)-1 # never make changes during first pass
+                    if not correctConduct and currentIndex is not None and currentIndex+1 == len(allDates): # never make changes during subsequent passes
+                        # print("Missing conducts: ", timetreeConduct, timetreeDate)
+                        send_tele_msg("Adding {} on {}".format(timetreeConduct, timetreeDate))
+                        requests = [{
+                            'insertDimension': {
+                                'range': {
+                                    'sheetId': conductTrackingSheet.id,
+                                    'dimension': 'COLUMNS',
+                                    'startIndex': currentIndex+2, 
+                                    'endIndex': currentIndex+3
+                                },
+                                'inheritFromBefore': False
+                            }
+                        }]
+                        requests.append({
+                            'insertDimension': {
+                                'range': {
+                                    'sheetId': conductTrackingSheet.id,
+                                    'dimension': 'COLUMNS',
+                                    'startIndex': currentIndex+3, 
+                                    'endIndex': currentIndex+4
+                                },
+                                'inheritFromBefore': False
+                            }
+                        })
+                        body = {'requests': requests}
+                        creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/spreadsheets'])
+                        service = build('sheets', 'v4', credentials=creds)
+                        response = service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
+                        insertConductTracking(timetreeDate, timetreeConduct+"(HAPT)", currentIndex+3)
+                        changesMade = True
+                        break
+                    prevDateTimeObject = dateObject
+        send_tele_msg("Finished")
+    except Exception as e:
+        print("Encountered exception:\n{}".format(traceback.format_exc()))
+        send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
 
 def checkMcStatus():
 
@@ -354,7 +839,7 @@ def checkMcStatus():
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
 
-def conductTracking():
+def checkConductTracking():
 
     try:
         gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
@@ -572,7 +1057,7 @@ def main(cetQ):
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
-                                    \n/checkall -> Check everything\n/updatedutygrp -> Update duty group according to CET")
+                                    \n/checkall -> Check everything\n/updatedutygrp -> Update duty group according to CET\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree")
 
 async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Checking for MC and Status Lapses...")
@@ -580,13 +1065,17 @@ async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def checkConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Checking for conduct tracking updates...")
-    conductTracking()
+    checkConductTracking()
+
+async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Updating conduct tracking...")
+    updateConductTracking()
 
 async def checkAllHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Checking for MC and Status Lapses...")
     checkMcStatus()
     await update.message.reply_text("Checking for conduct tracking updates...")
-    conductTracking()
+    checkConductTracking()
 
 ASK_CET = 1
 
@@ -617,6 +1106,7 @@ def telegram_manager() -> None:
     application.add_handler(CommandHandler("checkmcstatus", checkMcStatusHandler))
     application.add_handler(CommandHandler("checkconduct", checkConductHandler))
     application.add_handler(CommandHandler("checkall", checkAllHandler))
+    application.add_handler(CommandHandler("updateconducttracking", updateConductHandler))
 
     # Add a conversation handler for the new command
     conv_handler = ConversationHandler(
@@ -633,6 +1123,9 @@ def telegram_manager() -> None:
     application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
 
 if __name__ == '__main__':
+
+    updateConductTracking()
+    exit()
 
     send_tele_msg("Welcome to HQ Bot. Strong alone, stronger together. Send /help for list of available commands.")
     send_tele_msg("CDS reminder for report sick parade state scheduled at 0530. Send the latest CET using /updatedutygrp to schedule during FP")
