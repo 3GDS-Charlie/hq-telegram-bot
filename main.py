@@ -91,8 +91,9 @@ async def timetreeResponses():
         browser = await launch(headless=True)
     elif platform.system() == "Linux": # ubuntu
         # custom exec as oracle cloud uses ARM ubuntu
-        # custom user data dir due to permission issues for default location        
-        browser = await launch(headless=True, executablePath='/snap/bin/chromium', userDataDir='/home/pyppeteer')
+        # custom user data dir due to permission issues for default location 
+        # headless mode does not work on oracle cloud linux for some reason       
+        browser = await launch(headless=False, executablePath='/snap/bin/chromium', userDataDir='/home/pyppeteer')
     # Incognito to force login to be able to intercept
     context = await browser.createIncognitoBrowserContext()
     page = await context.newPage()
