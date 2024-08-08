@@ -2,6 +2,7 @@
 import json
 import time
 import gspread
+import platform
 from gspread_formatting import *
 from datetime import datetime, timedelta
 from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS, DUTY_GRP_ID, CHARLIE_Y2_ID, ID_INSTANCE, TOKEN_INSTANCE, CHARLIE_DUTY_CMDS, PERM_DUTY_CMDS, TIMETREE_USERNAME, TIMETREE_PASSWORD, TIMETREE_CALENDAR_ID
@@ -39,7 +40,7 @@ from PIL import Image
 import re
 
 # WhatsApp API
-import requests
+import requests as rq
 from whatsapp_api_client_python import API
 
 # Intercepting TimeTree Responses
@@ -48,6 +49,7 @@ from pyppeteer.errors import TimeoutError
 from zoneinfo import ZoneInfo
 foundResponse = False # Timetree response interception
 responseContent = None
+from bs4 import BeautifulSoup
 
 # Telegram Channel
 telegram_bot = telegram.Bot(token=TELEGRAM_CHANNEL_BOT_TOKEN)
@@ -85,13 +87,20 @@ async def intercept_response(response):
 
 async def timetreeResponses():
     global foundResponse
-    browser = await launch(headless=True)
-    page = await browser.newPage()
+    if platform.system() == "Dawrin": # macOS
+        browser = await launch(headless=True)
+    elif platform.system() == "Linux": # ubuntu
+        # custom exec as oracle cloud uses ARM ubuntu
+        # custom user data dir due to permission issues for default location        
+        browser = await launch(headless=True, executablePath='/snap/bin/chromium', userDataDir='/home/pyppeteer')
+    # Incognito to force login to be able to intercept
+    context = await browser.createIncognitoBrowserContext()
+    page = await context.newPage()
     
     # Intercept network responses
     page.on('response', lambda response: asyncio.ensure_future(intercept_response(response)))
 
-    await page.goto('https://timetreeapp.com/signin?locale=en')
+    await page.goto('https://timetreeapp.com/signin?locale=en', timeout=10000)
     try:
         await page.waitForSelector('input[name="email"]', timeout=10000)
         await page.type('input[name="email"]', TIMETREE_USERNAME)
@@ -102,7 +111,7 @@ async def timetreeResponses():
         await page.waitForNavigation(timeout=10000)
     except TimeoutError as e: print(f"Error: {e}")
     
-    while not foundResponse:await asyncio.sleep(1)
+    while not foundResponse: await asyncio.sleep(1)
     await browser.close()
 
 def convertTimestampToDatetime(timestamp, tzinfo=ZoneInfo("Asia/Singapore")):
@@ -938,7 +947,7 @@ def updateWhatsappGrp(cet):
     payload = {
         "groupId": dutyGrpId  
     }
-    response = requests.post(url, json=payload)
+    response = rq.post(url, json=payload)
     if response.status_code == 200: group_data = response.json()
     else: 
         send_tele_msg("Failed to retrieve group data: {}\nAborting updating duty group.".format(response.json()))
@@ -982,7 +991,7 @@ def updateWhatsappGrp(cet):
     payload = {
         "groupId": dutyGrpId  
     }
-    response = requests.post(url, json=payload)
+    response = rq.post(url, json=payload)
     if response.status_code == 200: group_data = response.json()
     else: 
         send_tele_msg("Unable to check whether all members were added successfully: {}.".format(response.json()))
@@ -1123,9 +1132,6 @@ def telegram_manager() -> None:
     application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
 
 if __name__ == '__main__':
-
-    updateConductTracking()
-    exit()
 
     send_tele_msg("Welcome to HQ Bot. Strong alone, stronger together. Send /help for list of available commands.")
     send_tele_msg("CDS reminder for report sick parade state scheduled at 0530. Send the latest CET using /updatedutygrp to schedule during FP")
