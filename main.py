@@ -587,15 +587,14 @@ def checkMcStatus():
             if not foundHeader and name == 'NAME': 
                 foundHeader = True
                 continue
-            if foundHeader: mcList.append((name, mcStartDates[index], mcEndDates[index], platoonMc[index], sectionMc[index], "MC", mcReason[index]))
-
+            if foundHeader: mcList.append((name, mcStartDates[index], mcEndDates[index], platoonMc[index+4], sectionMc[index], "MC", mcReason[index+3]))
         foundHeader = False
         statusList = []
         for index, name in enumerate(sheetStatusList, start = 0):
             if not foundHeader and name == 'NAME': 
                 foundHeader = True
                 continue
-            if foundHeader: statusList.append((name, statusStartDates[index], statusEndDates[index], platoonStatus[index], sectionStatus[index], "Status", statusReason[index]))
+            if foundHeader: statusList.append((name, statusStartDates[index], statusEndDates[index], platoonStatus[index+4], sectionStatus[index], "Status", statusReason[index+3]))
         
         paradeStateMcList = copy.deepcopy(mcList)
         paradeStateMasterList = copy.deepcopy(statusList)
