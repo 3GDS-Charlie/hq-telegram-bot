@@ -59,8 +59,8 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
-TELE_ALL_MEMBERS = False # Flag to send tele messages to all listed members
+ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
+TELE_ALL_MEMBERS = True # Flag to send tele messages to all listed members
 
 def send_tele_msg(msg):
     if TELE_ALL_MEMBERS:
@@ -1032,21 +1032,13 @@ def main(cetQ):
     weekDay = [1, 2, 3, 4, 5]
 
     while True:
+
         # Auto updating of MC Lapses everyday at 0900
         if datetime.now().hour == 9 and datetime.now().minute == 0:
             send_tele_msg("Checking for MC Lapses...")
             checkMcStatus()
-        # target_time_today = datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
-
-        # If the target time is earlier in the day, add a day to the target time
-        # if datetime.now() >= target_time_today:
-        #     target_time_today += timedelta(days=1)
-
-        # time_difference = (target_time_today - datetime.now()).total_seconds()
         
         # Auto reminding of CDS to send report sick parade state every morning 
-        # Default time 0530 if no CET received otherwise during FP of CET
-
         while not cetQ.empty(): 
             sentCdsReminder = False
             fpDateTime = cetQ.get()
@@ -1061,7 +1053,7 @@ def main(cetQ):
             # send reminder during weekdays when it hits the FP date and time of sent CET
             if datetime.now().isoweekday() in weekDay and datetime.now().day == int(fpDateTime[0][:2]) and datetime.now().hour == int(fpDateTime[1][:2]) and datetime.now().minute == int(fpDateTime[1][-2:]) and not sentCdsReminder:
                 send_tele_msg("Sending automated CDS reminder")
-                if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE")
+                if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE\nhttps://docs.google.com/spreadsheets/d/1y6q2rFUE_dbb-l_Ps3R3mQVSPJT_DB_kDys1uyFeXRg/edit?gid=802597665#gid=802597665")
                 sentCdsReminder = True
             # else:
             #     # if it is 0530 and the latest sent CET is still not current, send reminder
