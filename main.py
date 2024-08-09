@@ -1081,7 +1081,7 @@ def main(cetQ):
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
-                                    \n/checkall -> Check everything\n/updatedutygrp -> Update duty group according to CET\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree")
+                                    \n/checkall -> Check everything\n/updatedutygrp -> Update duty group and schedule CDS reminder according to CET\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree")
 
 async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Checking for MC and Status Lapses...")
