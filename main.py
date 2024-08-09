@@ -87,7 +87,7 @@ async def intercept_response(response):
 
 async def timetreeResponses():
     global foundResponse
-    if platform.system() == "Dawrin": # macOS
+    if platform.system() == "Darwin": # macOS
         browser = await launch(headless=True)
     elif platform.system() == "Linux": # ubuntu
         # custom exec as oracle cloud uses ARM ubuntu
@@ -508,7 +508,7 @@ def updateConductTracking():
                             insertConductTracking(timetreeDate, timetreeConduct+"(HAPT)", index+1)
                             changesMade = True
                             break
-                        elif date != timetreeDate and conduct not in timetreeConduct.replace(" ", ""):
+                        elif date != timetreeDate or conduct not in timetreeConduct.replace(" ", ""):
                             # print("Not on timetree: ", slave, date) # conduct that is not on timetree
                             send_tele_msg("Removing {} on {} as it is not on TimeTree".format(slave, date))
                             conductTrackingSheet.delete_columns(index+1, index+2)
