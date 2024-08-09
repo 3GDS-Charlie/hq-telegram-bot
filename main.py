@@ -456,7 +456,6 @@ def updateConductTracking():
                         dateObject = datetime.strptime(date.replace(" ", ""), "%d%m%y")
                         if dateObject.date() < datetime.now().date(): continue
                         else: currentIndex = index
-                        if prevDateTimeObject is not None and dateObject < prevDateTimeObject: continue
 
                         conduct = allConducts[index]
                         if "SST" in conduct: continue # ignore SSTs
@@ -466,6 +465,7 @@ def updateConductTracking():
                         conduct = conduct.replace("\n", "")
                         slave = copy.deepcopy(conduct)
                         conduct = conduct.replace(" ", "")
+                        print(timetreeDate, timetreeConduct, date, conduct)
                         if date == timetreeDate and conduct in timetreeConduct.replace(" ", ""): 
                             # print("Correct: ", slave, date) # no actions needed
                             correctConduct = True
