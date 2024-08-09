@@ -59,8 +59,8 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
-TELE_ALL_MEMBERS = True # Flag to send tele messages to all listed members
+ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
+TELE_ALL_MEMBERS = False # Flag to send tele messages to all listed members
 
 def send_tele_msg(msg):
     if TELE_ALL_MEMBERS:
@@ -565,18 +565,20 @@ def checkMcStatus():
         gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
         sheet = gc.open("3GDS CHARLIE PARADE STATE")
         cCoySheet = sheet.worksheet("C COY")
-        platoonMc = cCoySheet.col_values(6) # column F
-        sectionMc = cCoySheet.col_values(7) # column G
-        sheetMcList = cCoySheet.col_values(9) # column I
-        mcStartDates = cCoySheet.col_values(10) # column J
-        mcEndDates = cCoySheet.col_values(11) # column K
-        mcReason = cCoySheet.col_values(12) # column L
-        platoonStatus = cCoySheet.col_values(27) # column AA
-        sectionStatus = cCoySheet.col_values(28) # column AB
-        sheetStatusList = cCoySheet.col_values(30) # column AD
-        statusStartDates = cCoySheet.col_values(31) # column AE
-        statusEndDates = cCoySheet.col_values(32) # column AF
-        statusReason = cCoySheet.col_values(33) # column AG
+        allValues = cCoySheet.get_all_values()
+        allValues = list(zip(*allValues))
+        platoonMc = list(filter(None, allValues[5])) # column F
+        sectionMc = list(filter(None, allValues[6])) # column G
+        sheetMcList = list(filter(None, allValues[8])) # column I
+        mcStartDates = list(filter(None, allValues[9])) # column J
+        mcEndDates = list(filter(None, allValues[10])) # column K
+        mcReason = list(filter(None, allValues[11])) # column L
+        platoonStatus = list(filter(None, allValues[26])) # column AA
+        sectionStatus = list(filter(None, allValues[27])) # column AB
+        sheetStatusList = list(filter(None, allValues[29])) # column AD
+        statusStartDates = list(filter(None, allValues[30])) # column AE
+        statusEndDates = list(filter(None, allValues[31])) # column AF
+        statusReason = list(filter(None, allValues[32])) # column AG
         assert len(sheetMcList) == len(mcStartDates) == len(mcEndDates), "Num of names and MC dates do not tally"
         assert len(sheetStatusList) == len(statusStartDates) == len(statusEndDates), "Num of names and status dates do not tally"
         foundHeader = False
@@ -602,12 +604,14 @@ def checkMcStatus():
         # read existing MC/Status entries from mc lapse sheet
         mcStatusLapseSheet = gc.open("MC/Status Lapse Tracking")
         mcLapse = mcStatusLapseSheet.worksheet("MC")
-        sheetMcList = mcLapse.col_values(1) # column A
-        mcStartDates = mcLapse.col_values(2) # column B
-        mcEndDates = mcLapse.col_values(3) # column C
-        platoon = mcLapse.col_values(4) # column D
-        section = mcLapse.col_values(5) # # column E
-        mcReason = mcLapse.col_values(6) # # column F
+        allValues = mcLapse.get_all_values()
+        allValues = list(zip(*allValues))
+        sheetMcList = list(filter(None, allValues[0])) # column A
+        mcStartDates =list(filter(None, allValues[1])) # column B
+        mcEndDates = list(filter(None, allValues[2])) # column C
+        platoon = list(filter(None, allValues[3])) # column D
+        section = list(filter(None, allValues[4])) # column E
+        mcReason = list(filter(None, allValues[5])) # column F
         assert len(sheetMcList) == len(mcStartDates) == len(mcEndDates), "Num of names and MC dates do not tally"
         foundHeader = False
         existingMcList = []
@@ -620,12 +624,14 @@ def checkMcStatus():
         mcList = list(set(mcList)) # remove duplicate entries
 
         statusLapse = mcStatusLapseSheet.worksheet("Status")
-        sheetStatusList = statusLapse.col_values(1) # column A
-        statusStartDates = statusLapse.col_values(2) # column B
-        statusEndDates = statusLapse.col_values(3) # column C
-        platoon = statusLapse.col_values(4) # column D
-        section = statusLapse.col_values(5) # # column E
-        statusReason = statusLapse.col_values(6) # # column F
+        allValues = statusLapse.get_all_values()
+        allValues = list(zip(*allValues))
+        sheetStatusList = list(filter(None, allValues[0])) # column A
+        statusStartDates = list(filter(None, allValues[1])) # column B
+        statusEndDates = list(filter(None, allValues[2])) # column C
+        platoon = list(filter(None, allValues[3])) # column D
+        section = list(filter(None, allValues[4])) # column E
+        statusReason = list(filter(None, allValues[5])) # column F
         assert len(sheetStatusList) == len(statusStartDates) == len(statusEndDates), "Num of names and status dates do not tally"
         foundHeader = False
         existingStatusList = []
@@ -639,13 +645,15 @@ def checkMcStatus():
 
         # Get already checked MC/Status entries
         mcStatusChecked = mcStatusLapseSheet.worksheet("Checked")
-        sheetMcStatusList = mcStatusChecked.col_values(1) # column A
-        mcStatusStartDates = mcStatusChecked.col_values(2) # column B
-        mcStatusEndDates = mcStatusChecked.col_values(3) # column C
-        platoon = mcStatusChecked.col_values(4) # column D
-        section = mcStatusChecked.col_values(5) # # column E
-        type = mcStatusChecked.col_values(6) # # column F
-        mcStatusReason = mcStatusChecked.col_values(7) # # column G
+        allValues = mcStatusChecked.get_all_values()
+        allValues = list(zip(*allValues))
+        sheetMcStatusList = list(filter(None, allValues[0])) # column A
+        mcStatusStartDates = list(filter(None, allValues[1])) # column B
+        mcStatusEndDates = list(filter(None, allValues[2])) # column C
+        platoon = list(filter(None, allValues[3])) # column D
+        section = list(filter(None, allValues[4])) # column E
+        type = list(filter(None, allValues[5])) # column F
+        mcStatusReason = list(filter(None, allValues[6])) # column G
         foundHeader = False
         checkedMcStatus = []
         for index, name in enumerate(sheetMcStatusList, start = 0):
@@ -683,12 +691,18 @@ def checkMcStatus():
             driveMcStatusList = drive.ListFile({'q': f"'{folderId}' in parents and trashed=false"}).GetList()
             if mcStatus[1] == "#REF!": continue # parade state ref errors. skip iteration
             tmp = mcStatus[1].split(' ')
-            tmp[1] = monthConversion[tmp[1]] # convert MMM to MM
+            try: tmp[1] = monthConversion[tmp[1]] # convert MMM to MM
+            except IndexError: 
+                send_tele_msg("Unable to perform month conversion for {}".format(mcStatus[1]))
+                raise IndexError
             startDate = ''.join(tmp)
             startDateTime = datetime.strptime(startDate, "%d%m%y").date()
             if mcStatus[2] != '-': # no end date/permanent
                 tmp = mcStatus[2].split(' ')
-                tmp[1] = monthConversion[tmp[1]] # convert MMM to MM
+                try: tmp[1] = monthConversion[tmp[1]] # convert MMM to MM
+                except IndexError: 
+                    send_tele_msg("Unable to perform month conversion for {}".format(mcStatus[1]))
+                    raise IndexError
                 endDate = ''.join(tmp)
             else: endDate = mcStatus[2]
             pattern1 = r"(?<!\d)(\d{1,2}/\d{1,2}/\d{4})(?!\d)"
@@ -1040,7 +1054,7 @@ def main(cetQ):
             # check whether date and time is correct
             if cetQ.empty(): 
                 if datetime.strptime(fpDateTime[0]+fpDateTime[1], "%d%m%y%H%M") > datetime.now(): send_tele_msg("CDS reminder for report sick parade state scheduled at {} {}".format(fpDateTime[0], fpDateTime[1]))
-                else: send_tele_msg("Invalid CET date. CDS reminder for report sick parade state scheduled at 0530")
+                else: send_tele_msg("Invalid CET date.")
 
         # there was a sent CET since the start of the bot
         if fpDateTime is not None:
@@ -1049,19 +1063,19 @@ def main(cetQ):
                 send_tele_msg("Sending automated CDS reminder")
                 if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE")
                 sentCdsReminder = True
-            else:
-                # if it is 0530 and the latest sent CET is still not current, send reminder
-                if datetime.now().isoweekday() in weekDay and datetime.now().day != int(fpDateTime[0][:2]) and datetime.now().hour == 5 and datetime.now().minute == 30 and not sentCdsReminder:
-                    send_tele_msg("Sending automated CDS reminder")
-                    if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE")
-                    sentCdsReminder = True
-        else: 
-            # no sent CET since the start of the bot
-            # send reminder during weekdays at default timing of 0530
-            if datetime.now().isoweekday() in weekDay and datetime.now().hour == 5 and datetime.now().minute == 30 and not sentCdsReminder:
-                send_tele_msg("Sending automated CDS reminder")
-                if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE")
-                sentCdsReminder = True
+            # else:
+            #     # if it is 0530 and the latest sent CET is still not current, send reminder
+            #     if datetime.now().isoweekday() in weekDay and datetime.now().day != int(fpDateTime[0][:2]) and datetime.now().hour == 5 and datetime.now().minute == 30 and not sentCdsReminder:
+            #         send_tele_msg("Sending automated CDS reminder")
+            #         if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE")
+            #         sentCdsReminder = True
+        # else: 
+        #     # no sent CET since the start of the bot
+        #     # send reminder during weekdays at default timing of 0530
+        #     if datetime.now().isoweekday() in weekDay and datetime.now().hour == 5 and datetime.now().minute == 30 and not sentCdsReminder:
+        #         send_tele_msg("Sending automated CDS reminder")
+        #         if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE")
+        #         sentCdsReminder = True
 
         time.sleep(5)
 
@@ -1134,8 +1148,8 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
-    send_tele_msg("Welcome to HQ Bot. Strong alone, stronger together. Send /help for list of available commands.")
-    send_tele_msg("CDS reminder for report sick parade state scheduled at 0530. Send the latest CET using /updatedutygrp to schedule during FP")
+    send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together. Send /help for list of available commands.")
+    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.")
     cetQueue = multiprocessing.Queue()
     mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue,))
     mainCheckMcProcess.start()
