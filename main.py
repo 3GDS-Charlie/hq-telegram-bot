@@ -60,7 +60,7 @@ wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'S
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
 ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
-TELE_ALL_MEMBERS = True # Flag to send tele messages to all listed members
+TELE_ALL_MEMBERS = False # Flag to send tele messages to all listed members
 
 def send_tele_msg(msg):
     if TELE_ALL_MEMBERS:
@@ -465,7 +465,6 @@ def updateConductTracking():
                         conduct = conduct.replace("\n", "")
                         slave = copy.deepcopy(conduct)
                         conduct = conduct.replace(" ", "")
-                        print(timetreeDate, timetreeConduct, date, conduct)
                         if date == timetreeDate and conduct in timetreeConduct.replace(" ", ""): 
                             # print("Correct: ", slave, date) # no actions needed
                             correctConduct = True
@@ -552,6 +551,7 @@ def updateConductTracking():
                         changesMade = True
                         break
                     prevDateTimeObject = dateObject
+                if changesMade: break
         send_tele_msg("Finished")
     except Exception as e:
         print("Encountered exception:\n{}".format(traceback.format_exc()))
