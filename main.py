@@ -939,6 +939,7 @@ def updateWhatsappGrp(cet):
         PDS9 = None
         newDate = None
         fpTime = None
+        noFPTimeFound = True
         for segment in cetSegments:
             if "Duty Personnel" in segment: newDate = segment.split('[')[1].split('/')[0].replace(" ", "")
             if 'FP' in segment: fpTime = segment.split(" -")[0]
@@ -946,7 +947,12 @@ def updateWhatsappGrp(cet):
             elif 'PDS7' in segment: PDS7 = segment.split(': ')[-1].replace(" ", "")
             elif 'PDS8' in segment: PDS8 = segment.split(': ')[-1].replace(" ", "")
             elif 'PDS9' in segment: PDS9 = segment.split(': ')[-1].replace(" ", "")
-            if fpTime is not None: cetQueue.put((newDate, fpTime))
+            if fpTime is not None: 
+                noFPTimeFound = False
+                cetQueue.put((newDate, fpTime))
+        if noFPTimeFound: 
+            cetQueue.put(None)
+            send_tele_msg("No FP time found. CDS reminder not scheduled.")
         if (CDS is None and PDS7 is None and PDS8 is None and PDS9 is None) or newDate is None: raise Exception
     except Exception as e: 
         send_tele_msg("Unrecognized CET")
@@ -1043,7 +1049,8 @@ def main(cetQ):
             # got latest CET
             # check whether date and time is correct
             if cetQ.empty(): 
-                if datetime.strptime(fpDateTime[0]+fpDateTime[1], "%d%m%y%H%M") > datetime.now(): send_tele_msg("CDS reminder for report sick parade state scheduled at {} {}".format(fpDateTime[0], fpDateTime[1]))
+                if fpDateTime is None: pass
+                elif datetime.strptime(fpDateTime[0]+fpDateTime[1], "%d%m%y%H%M") > datetime.now(): send_tele_msg("CDS reminder for report sick parade state scheduled at {} {}".format(fpDateTime[0], fpDateTime[1]))
                 else: send_tele_msg("Invalid CET date.")
 
         # there was a sent CET since the start of the bot
