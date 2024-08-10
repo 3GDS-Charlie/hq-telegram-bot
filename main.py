@@ -49,7 +49,6 @@ from pyppeteer.errors import TimeoutError
 from zoneinfo import ZoneInfo
 foundResponse = False # Timetree response interception
 responseContent = None
-from bs4 import BeautifulSoup
 
 # Telegram Channel
 telegram_bot = telegram.Bot(token=TELEGRAM_CHANNEL_BOT_TOKEN)
@@ -606,7 +605,7 @@ def checkMcStatus():
         allValues = mcLapse.get_all_values()
         allValues = list(zip(*allValues))
         sheetMcList = list(filter(None, allValues[0])) # column A
-        mcStartDates =list(filter(None, allValues[1])) # column B
+        mcStartDates = list(filter(None, allValues[1])) # column B
         mcEndDates = list(filter(None, allValues[2])) # column C
         platoon = list(filter(None, allValues[3])) # column D
         section = list(filter(None, allValues[4])) # column E
@@ -1110,7 +1109,7 @@ async def cancel(update: Update, context: CallbackContext) -> int:
 async def unknownCommand(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("Unrecognised command.")
     await update.message.reply_text("Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
-                                    \n/checkall -> Check everything\n/updatedutygrp -> Update duty group according to CET")
+                                    \n/checkall -> Check everything\n/updatedutygrp -> Update duty group according to CET\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree")
 
 def telegram_manager() -> None:
 
