@@ -471,7 +471,7 @@ def updateConductTracking():
                             break
                         elif date == timetreeDate and conduct not in timetreeConduct.replace(" ", ""):
                             # print("Not on timetree: ", slave, date) # conduct that is not on timetree
-                            send_tele_msg("Removing {} on {} as it is not on TimeTree".format(slave, date))
+                            send_tele_msg("Removing {} on {}".format(slave, date))
                             conductTrackingSheet.delete_columns(index+1, index+2)
                             changesMade = True
                             break
@@ -509,7 +509,7 @@ def updateConductTracking():
                             break
                         elif date != timetreeDate or conduct not in timetreeConduct.replace(" ", ""):
                             # print("Not on timetree: ", slave, date) # conduct that is not on timetree
-                            send_tele_msg("Removing {} on {} as it is not on TimeTree".format(slave, date))
+                            send_tele_msg("Removing {} on {}".format(slave, date))
                             conductTrackingSheet.delete_columns(index+1, index+2)
                             changesMade = True
                             # do not break here 
