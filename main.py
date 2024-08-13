@@ -814,6 +814,7 @@ def checkMcStatus():
         statusLapse.batch_clear(['A2:G1000'])
         if len(lapseMcList) == 0: send_tele_msg("No MC lapses")
         else:
+            lapseMcList = sorted(lapseMcList, key=lambda x: datetime.strptime(x[1], "%d %b %y"), reverse=True)
             tele_msg = "Lapsed MC List:"
             for index, mc in enumerate(lapseMcList, start = 2):
                 mcLapse.update_cells([gspread.cell.Cell(index, 1, mc[0]),
@@ -829,6 +830,7 @@ def checkMcStatus():
         
         if len(lapseStatusList) == 0: send_tele_msg("No Status lapses")
         else:
+            lapseStatusList = sorted(lapseStatusList, key=lambda x: datetime.strptime(x[1], "%d %b %y"), reverse=True)
             tele_msg = "Lapsed Status List:"
             for index, status in enumerate(lapseStatusList, start = 2):
                 statusLapse.update_cells([gspread.cell.Cell(index, 1, status[0]),
