@@ -58,8 +58,8 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
-TELE_ALL_MEMBERS = False # Flag to send tele messages to all listed members
+ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
+TELE_ALL_MEMBERS = True # Flag to send tele messages to all listed members
 
 def send_tele_msg(msg):
     if TELE_ALL_MEMBERS:
