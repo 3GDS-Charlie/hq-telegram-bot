@@ -945,10 +945,10 @@ def updateWhatsappGrp(cet):
         for segment in cetSegments:
             if "Duty Personnel" in segment: newDate = segment.split('[')[1].split('/')[0].replace(" ", "")
             if 'FP' in segment: fpTime = segment.split(" -")[0]
-            if 'CDS' in segment: CDS = segment.split(': ')[-1].replace(" ", "")
-            elif 'PDS7' in segment: PDS7 = segment.split(': ')[-1].replace(" ", "")
-            elif 'PDS8' in segment: PDS8 = segment.split(': ')[-1].replace(" ", "")
-            elif 'PDS9' in segment: PDS9 = segment.split(': ')[-1].replace(" ", "")
+            if 'CDS' in segment: CDS = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
+            elif 'PDS7' in segment: PDS7 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
+            elif 'PDS8' in segment: PDS8 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
+            elif 'PDS9' in segment: PDS9 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
             if fpTime is not None: 
                 noFPTimeFound = False
                 cetQueue.put((newDate, fpTime))
@@ -991,16 +991,16 @@ def updateWhatsappGrp(cet):
                 if ENABLE_WHATSAPP_API: greenAPI.groups.removeGroupParticipant(dutyGrpId, member['id']) 
 
     # Adding new duty members
-    if CDS not in CHARLIE_DUTY_CMDS: send_tele_msg("CDS {} not found".format(CDS))
+    if CDS not in CHARLIE_DUTY_CMDS: pass #send_tele_msg("CDS {} not found".format(CDS))
     else: 
         if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[CDS]))
-    if PDS7 not in CHARLIE_DUTY_CMDS: send_tele_msg("PDS7 {} not found".format(PDS7))
+    if PDS7 not in CHARLIE_DUTY_CMDS: pass #send_tele_msg("PDS7 {} not found".format(PDS7))
     else: 
         if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS7]))
-    if PDS8 not in CHARLIE_DUTY_CMDS: send_tele_msg("PDS8 {} not found".format(PDS8))
+    if PDS8 not in CHARLIE_DUTY_CMDS: pass# send_tele_msg("PDS8 {} not found".format(PDS8))
     else: 
         if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS8]))
-    if PDS9 not in CHARLIE_DUTY_CMDS: send_tele_msg("PDS9 {} not found".format(PDS9))
+    if PDS9 not in CHARLIE_DUTY_CMDS: pass# send_tele_msg("PDS9 {} not found".format(PDS9))
     else: 
         if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS9]))
 
@@ -1025,7 +1025,7 @@ def updateWhatsappGrp(cet):
             if memberId not in allMemberNumbers:
                 for name, number in CHARLIE_DUTY_CMDS.items():
                     if memberId == number: 
-                        send_tele_msg("{} - {} was not added succesfully".format(name.replace("3SG", ""), memberId))
+                        send_tele_msg("{} - {} was not added succesfully".format(name.replace("3SG", "").replace("2SG", ""), memberId))
                         break
     send_tele_msg("Updated duty group")
 
@@ -1085,7 +1085,6 @@ def main(cetQ):
             checkedDailyMcMa = True
         else: checkedDailyMcMa = False
 
-        
         # Auto reminding of CDS to send report sick parade state every morning 
         while not cetQ.empty(): 
             sentCdsReminder = False
@@ -1095,7 +1094,9 @@ def main(cetQ):
             if cetQ.empty(): 
                 if fpDateTime is None: pass
                 elif datetime.strptime(fpDateTime[0]+fpDateTime[1], "%d%m%y%H%M") > datetime.now(): send_tele_msg("CDS reminder for report sick parade state scheduled at {} {}".format(fpDateTime[0], fpDateTime[1]))
-                else: send_tele_msg("Invalid CET date.")
+                else: 
+                    send_tele_msg("Invalid CET date to schedule CDS reminder.")
+                    fpDateTime = None
 
         # there was a sent CET since the start of the bot
         if fpDateTime is not None:
@@ -1104,19 +1105,6 @@ def main(cetQ):
                 send_tele_msg("Sending automated CDS reminder")
                 if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE\nhttps://docs.google.com/spreadsheets/d/1y6q2rFUE_dbb-l_Ps3R3mQVSPJT_DB_kDys1uyFeXRg/edit?gid=802597665#gid=802597665")
                 sentCdsReminder = True
-            # else:
-            #     # if it is 0530 and the latest sent CET is still not current, send reminder
-            #     if datetime.now().isoweekday() in weekDay and datetime.now().day != int(fpDateTime[0][:2]) and datetime.now().hour == 5 and datetime.now().minute == 30 and not sentCdsReminder:
-            #         send_tele_msg("Sending automated CDS reminder")
-            #         if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE")
-            #         sentCdsReminder = True
-        # else: 
-        #     # no sent CET since the start of the bot
-        #     # send reminder during weekdays at default timing of 0530
-        #     if datetime.now().isoweekday() in weekDay and datetime.now().hour == 5 and datetime.now().minute == 30 and not sentCdsReminder:
-        #         send_tele_msg("Sending automated CDS reminder")
-        #         if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE")
-        #         sentCdsReminder = True
 
         time.sleep(5)
 
