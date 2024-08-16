@@ -566,34 +566,36 @@ def checkMcStatus():
         cCoySheet = sheet.worksheet("C COY")
         allValues = cCoySheet.get_all_values()
         allValues = list(zip(*allValues))
-        platoonMc = list(filter(None, allValues[5])) # column F
-        sectionMc = list(filter(None, allValues[6])) # column G
-        sheetMcList = list(filter(None, allValues[8])) # column I
-        mcStartDates = list(filter(None, allValues[9])) # column J
-        mcEndDates = list(filter(None, allValues[10])) # column K
-        mcReason = list(filter(None, allValues[11])) # column L
-        platoonStatus = list(filter(None, allValues[26])) # column AA
-        sectionStatus = list(filter(None, allValues[27])) # column AB
-        sheetStatusList = list(filter(None, allValues[29])) # column AD
-        statusStartDates = list(filter(None, allValues[30])) # column AE
-        statusEndDates = list(filter(None, allValues[31])) # column AF
-        statusReason = list(filter(None, allValues[32])) # column AG
-        assert len(sheetMcList) == len(mcStartDates) == len(mcEndDates), "Num of names and MC dates do not tally"
-        assert len(sheetStatusList) == len(statusStartDates) == len(statusEndDates), "Num of names and status dates do not tally"
+        platoonMc = allValues[5] # column F
+        sectionMc = allValues[6] # column G
+        sheetMcList = allValues[8] # column I
+        mcStartDates = allValues[9] # column J
+        mcEndDates = allValues[10] # column K
+        mcReason = allValues[11] # column L
+        platoonStatus = allValues[26] # column AA
+        sectionStatus = allValues[27] # column AB
+        sheetStatusList = allValues[29] # column AD
+        statusStartDates = allValues[30] # column AE
+        statusEndDates = allValues[31] # column AF
+        statusReason = allValues[32] # column AG
+        # assert len(sheetMcList) == len(mcStartDates) == len(mcEndDates), "Num of names and MC dates do not tally"
+        # assert len(sheetStatusList) == len(statusStartDates) == len(statusEndDates), "Num of names and status dates do not tally"
         foundHeader = False
         mcList = []
         for index, name in enumerate(sheetMcList, start = 0):
             if not foundHeader and name == 'NAME': 
                 foundHeader = True
                 continue
-            if foundHeader: mcList.append((name, mcStartDates[index], mcEndDates[index], platoonMc[index+4], sectionMc[index], "MC", mcReason[index+3]))
+            if foundHeader and name != '' and mcStartDates[index] != '#REF!' and mcEndDates[index] != '#REF!' and mcReason[index] != '#REF!': 
+                mcList.append((name, mcStartDates[index], (mcEndDates[index] if mcEndDates[index] != '' else '-'), platoonMc[index], sectionMc[index], "MC", mcReason[index]))
         foundHeader = False
         statusList = []
         for index, name in enumerate(sheetStatusList, start = 0):
             if not foundHeader and name == 'NAME': 
                 foundHeader = True
                 continue
-            if foundHeader: statusList.append((name, statusStartDates[index], statusEndDates[index], platoonStatus[index+4], sectionStatus[index], "Status", statusReason[index+3]))
+            if foundHeader and name != '' and statusStartDates[index] != '#REF!' and statusEndDates[index] != '#REF!' and statusReason[index] != '#REF!': 
+                statusList.append((name, statusStartDates[index], (statusEndDates[index] if statusEndDates[index] != '' else '-'), platoonStatus[index], sectionStatus[index], "Status", statusReason[index]))
         
         paradeStateMcList = copy.deepcopy(mcList)
         paradeStateMasterList = copy.deepcopy(statusList)
@@ -785,9 +787,6 @@ def checkMcStatus():
                             tmp[2] = tmp[2].replace("2024", "24")
                             tmp[2] = tmp[2].replace("2025", "25")
                             allDates.append("".join(tmp))
-                    # print(allDates)
-                    # cv2.imshow("MC/STATUS", img)
-                    # cv2.waitKey(0)
                     if startDate in allDates and endDate in allDates: 
                         foundMcStatusFile = True
                         break
@@ -1029,20 +1028,62 @@ def updateWhatsappGrp(cet):
                         break
     send_tele_msg("Updated duty group")
 
+def autoCheckMA():
+    try:
+        gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
+        sheet = gc.open("3GDS CHARLIE PARADE STATE")
+        paradeStateSheet = sheet.worksheet("C COY")
+        allValues = paradeStateSheet.get_all_values()
+        allValues = list(zip(*allValues))
+        mAs = allValues[44] # column AS
+        names = allValues[43] # column AR
+        foundStart = False
+        foundMA = False
+        pattern = r'\d{6}' # 6 consecutive digits i.e 6 digit date
+        secondPattern = r'\d{2}\s[A-Z][a-z]{2}\s\d{2}' # e.g. 28 Aug 23
+        tele_msg = "Medical Appointments today({}{}{}):".format(datetime.now().day, (("0" + str(datetime.now().month)) if datetime.now().month < 10 else (str(datetime.now().month))), str(datetime.now().year).replace("20", ""))
+        for index, ma in enumerate(mAs, start = 0):
+            if ma == 'DETAILS': 
+                foundStart = True
+                continue
+            if not foundStart: continue
+            if ma == '': continue
+            date = re.findall(pattern, ma)
+            if len(date) != 0: 
+                datetimeObj = datetime.strptime(date[0], '%d%m%y')
+            else:
+                date = re.findall(secondPattern, ma)
+                if len(date) != 0: datetimeObj = datetime.strptime(date[0], '%d %b %y')
+            if datetimeObj.day == datetime.now().today().day and datetimeObj.month == datetime.now().today().month and datetimeObj.year == datetime.now().today().year:
+                if names[index] == '': continue
+                foundMA = True
+                tele_msg = "\n".join([tele_msg, "{}\n{}\n".format(names[index], ma)])
+        if foundMA: send_tele_msg(tele_msg)
+        else: send_tele_msg("No Medical Appointments today")
+            
+    except Exception as e:
+        print("Encountered exception:\n{}".format(traceback.format_exc()))
+        send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
+
 def main(cetQ):
 
     charlieY2Id = CHARLIE_Y2_ID
     greenAPI = API.GreenAPI(ID_INSTANCE, TOKEN_INSTANCE)
     fpDateTime = None
     sentCdsReminder = False
+    checkedDailyMcMa = False
     weekDay = [1, 2, 3, 4, 5]
-
     while True:
 
-        # Auto updating of MC Lapses everyday at 0900
-        if datetime.now().hour == 9 and datetime.now().minute == 0:
+        # Auto updating of MC Lapses and MAs everyday at 0900
+        if not checkedDailyMcMa and datetime.now().hour == 9 and datetime.now().minute == 0:
             send_tele_msg("Checking for MC Lapses...")
             checkMcStatus()
+            send_tele_msg("Checking for MAs...")
+            autoCheckMA()
+            checkedDailyMcMa = True
+        else: checkedDailyMcMa = False
+
         
         # Auto reminding of CDS to send report sick parade state every morning 
         while not cetQ.empty(): 
