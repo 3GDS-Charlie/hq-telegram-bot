@@ -58,8 +58,8 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
-TELE_ALL_MEMBERS = False # Flag to send tele messages to all listed members
+ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
+TELE_ALL_MEMBERS = True # Flag to send tele messages to all listed members
 
 def send_tele_msg(msg):
     if TELE_ALL_MEMBERS:
@@ -920,7 +920,7 @@ def checkConductTracking():
                 if set(p9TrackingStatus) == {True}: updatedMsg = "\n".join([updatedMsg, "P9 updated"])
                 if not set(p9TrackingStatus) == {True} and not set(p9TrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "P9 partially updated"])
                 if set(p9TrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "P9 not updated"])
-                if "not updated" in updatedMsg: updatedMsg = "\n".join([updatedMsg, "P9 not updated"])
+                if "not updated" in updatedMsg: updatedMsg = "\n".join([updatedMsg, "https://docs.google.com/spreadsheets/d/1TBHzKqmEHmyONaMQJoqt4HWwdsoY0pRSEv8WSoXDmyw/edit?gid=1000647342#gid=1000647342"])
             send_tele_msg(updatedMsg)
         
     except Exception as e:
