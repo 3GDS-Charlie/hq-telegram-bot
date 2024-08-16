@@ -920,7 +920,7 @@ def checkConductTracking():
                 if set(p9TrackingStatus) == {True}: updatedMsg = "\n".join([updatedMsg, "P9 updated"])
                 if not set(p9TrackingStatus) == {True} and not set(p9TrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "P9 partially updated"])
                 if set(p9TrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "P9 not updated"])
-                if "not updated" in updatedMsg: updatedMsg = "\n".join([updatedMsg, "https://docs.google.com/spreadsheets/d/1TBHzKqmEHmyONaMQJoqt4HWwdsoY0pRSEv8WSoXDmyw/edit?gid=1000647342#gid=1000647342"])
+                if "not updated" in updatedMsg or "partially updated" in updatedMsg: updatedMsg = "\n".join([updatedMsg, "https://docs.google.com/spreadsheets/d/1TBHzKqmEHmyONaMQJoqt4HWwdsoY0pRSEv8WSoXDmyw/edit?gid=1000647342#gid=1000647342"])
             send_tele_msg(updatedMsg)
         
     except Exception as e:
