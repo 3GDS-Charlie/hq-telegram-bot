@@ -1117,29 +1117,35 @@ ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status Lapse
 \n/generateIR -> Help to generate IR"
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(ALL_COMMANDS)
+    if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
+        await update.message.reply_text(ALL_COMMANDS)
 
 async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Checking for MC and Status Lapses...")
-    checkMcStatus()
+    if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
+        await update.message.reply_text("Checking for MC and Status Lapses...")
+        checkMcStatus()
 
 async def checkConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Checking for conduct tracking updates...")
-    checkConductTracking()
+    if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
+        await update.message.reply_text("Checking for conduct tracking updates...")
+        checkConductTracking()
 
 async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Updating conduct tracking...")
-    updateConductTracking()
+    if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
+        await update.message.reply_text("Updating conduct tracking...")
+        updateConductTracking()
 
 async def checkAllHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Checking for MC and Status Lapses. This might take a while.")
-    checkMcStatus()
-    await update.message.reply_text("Checking for conduct tracking updates...")
-    checkConductTracking()
+    if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
+        await update.message.reply_text("Checking for MC and Status Lapses. This might take a while.")
+        checkMcStatus()
+        await update.message.reply_text("Checking for conduct tracking updates...")
+        checkConductTracking()
 
 ASK_CET = 1
 
 async def updateCet(update: Update, context: CallbackContext) -> int:
+    if str(update.effective_user.id) not in list(CHANNEL_IDS.values()): return ConversationHandler.END
     await update.message.reply_text("Send the new CET or send /cancel to cancel.")
     return ASK_CET
 
@@ -1159,6 +1165,7 @@ nameTobeChecked = None
 NEW, CHECK_PREV_IR, PREV_IR, TRAINING, NAME, CHECK_PES, DATE_TIME, LOCATION, DESCRIPTION, STATUS, FOLLOW_UP, NOK, REPORTED_BY = range(13)
 
 async def start(update: Update, context: CallbackContext) -> int:
+    if str(update.effective_user.id) not in list(CHANNEL_IDS.values()): return ConversationHandler.END
     global user_responses, usingPrevIR, prevIRDetails, findingName, findingDateTime, findingLocation, checkingName, nameTobeChecked
     user_responses = {}
     usingPrevIR = False
@@ -1512,16 +1519,19 @@ ASIS Report - No\n\
     return ConversationHandler.END
 
 async def cancel_ir(update: Update, context: CallbackContext) -> int:
-    await update.message.reply_text("IR generation cancelled.")
-    return ConversationHandler.END
+    if str(update.effective_user.id) in list(CHANNEL_IDS.values()):
+        await update.message.reply_text("IR generation cancelled.")
+        return ConversationHandler.END
 
 async def cancel_dutygrp(update: Update, context: CallbackContext) -> int:
-    await update.message.reply_text('Updating cancelled')
-    return ConversationHandler.END
+    if str(update.effective_user.id) in list(CHANNEL_IDS.values()):
+        await update.message.reply_text('Updating cancelled')
+        return ConversationHandler.END
 
 async def unknownCommand(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text("Unrecognised command.")
-    await update.message.reply_text(ALL_COMMANDS)
+    if str(update.effective_user.id) in list(CHANNEL_IDS.values()):
+        await update.message.reply_text("Unrecognised command.")
+        await update.message.reply_text(ALL_COMMANDS)
 
 def telegram_manager() -> None:
 
