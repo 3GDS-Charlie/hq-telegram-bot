@@ -1237,6 +1237,9 @@ async def name(update: Update, context: CallbackContext) -> int:
             allMatches.append(allValues[index][5])
             user_responses['name'] = allValues[index]
             foundPersonnel = True
+    if not foundPersonnel: 
+        await update.message.reply_text("Unable to find {}. Please provide another name:".format(userInput))
+        return NAME
     if len(allMatches) > 1: # more than one match found
         reply_keyboard = [allMatches]
         await update.message.reply_text(
@@ -1249,9 +1252,6 @@ async def name(update: Update, context: CallbackContext) -> int:
             "What is the PES status of {} ?".format(userInput),
             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
         return CHECK_PES
-    if not foundPersonnel: 
-        await update.message.reply_text("Unable to find {}. Please provide another name:".format(userInput))
-        return NAME
     if findingName or checkingName: return await location(update, context)
     await update.message.reply_text("Please provide the date and time of the incident (e.g. 310124 1430):")
     return DATE_TIME
