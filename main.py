@@ -1088,19 +1088,21 @@ def main(cetQ):
             checkedDailyMcMa = True
         else: checkedDailyMcMa = False
 
-        # Auto reminding of CDS to send report sick parade state every morning 
-        while not cetQ.empty(): 
-            sentCdsReminder = False
-            fpDateTime = cetQ.get()
-            # got latest CET
-            # check whether date and time is correct
-            if cetQ.empty(): 
-                if fpDateTime is None: pass
-                elif datetime.strptime(fpDateTime[0]+fpDateTime[1], "%d%m%y%H%M") > datetime.now(): send_tele_msg("CDS reminder for report sick parade state scheduled at {} {}".format(fpDateTime[0], fpDateTime[1]))
-                else: 
-                    send_tele_msg("Invalid CET date to schedule CDS reminder.")
-                    fpDateTime = None
-
+        try: # Auto reminding of CDS to send report sick parade state every morning 
+            while not cetQ.empty(): 
+                sentCdsReminder = False
+                fpDateTime = cetQ.get()
+                # got latest CET
+                # check whether date and time is correct
+                if cetQ.empty(): 
+                    if fpDateTime is None: pass
+                    elif datetime.strptime(fpDateTime[0]+fpDateTime[1], "%d%m%y%H%M") > datetime.now(): send_tele_msg("CDS reminder for report sick parade state scheduled at {} {}".format(fpDateTime[0], fpDateTime[1]))
+                    else: 
+                        send_tele_msg("Invalid CET date to schedule CDS reminder.")
+                        fpDateTime = None
+        except Exception as e:
+            print("Encountered exception:\n{}".format(traceback.format_exc()))
+            send_tele_msg("Encountered exception while trying to schedule CDS reminder:\n{}".format(traceback.format_exc()))
         # there was a sent CET since the start of the bot
         if fpDateTime is not None:
             # send reminder during weekdays when it hits the FP date and time of sent CET
