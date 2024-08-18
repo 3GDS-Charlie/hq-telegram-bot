@@ -61,21 +61,28 @@ officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'L
 ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
 TELE_ALL_MEMBERS = True # Flag to send tele messages to all listed members
 
-def send_tele_msg(msg):
+def send_tele_msg(msg, parseMode = None, replyMarkup = None):
+
+    """
+        parseMode = 'MarkdownV2'
+    """
+
     if TELE_ALL_MEMBERS:
         for _, value in CHANNEL_IDS.items():
-            asyncio.run(send_telegram_bot_msg(msg, value))
+            asyncio.run(send_telegram_bot_msg(msg, value, parseMode, replyMarkup))
     else: 
         for _, value in CHANNEL_IDS.items():
-            asyncio.run(send_telegram_bot_msg(msg, value))
+            asyncio.run(send_telegram_bot_msg(msg, value, parseMode, replyMarkup))
             break
 
-async def send_telegram_bot_msg(msg, channel_id):
+async def send_telegram_bot_msg(msg, channel_id, parseMode, replyMarkup):
     try: 
-        await telegram_bot.send_message(chat_id = channel_id, text = msg, read_timeout=5)
+        if parseMode is None: await telegram_bot.send_message(chat_id = channel_id, text = msg, read_timeout=5, reply_markup=replyMarkup)
+        else: await telegram_bot.send_message(chat_id = channel_id, text = msg, read_timeout=5, parse_mode=parseMode, reply_markup=replyMarkup)
     except telegram.error.TimedOut:
         await asyncio.sleep(5)
-        await telegram_bot.send_message(chat_id = channel_id, text = msg, read_timeout=5)
+        if parseMode is None: await telegram_bot.send_message(chat_id = channel_id, text = msg, read_timeout=5, reply_markup=replyMarkup)
+        else: await telegram_bot.send_message(chat_id = channel_id, text = msg, read_timeout=5, parse_mode=parseMode, reply_markup=replyMarkup)
 
 async def intercept_response(response):
     global foundResponse, responseContent
@@ -677,7 +684,6 @@ def checkMcStatus():
         possibleMcList = []
         possibleStatusList = []
         foundMcStatusFiles = []
-        firstMsg = False
         for count, mcStatus in enumerate(masterList, start = 1):
             rank = mcStatus[0].split(' ')[0]
             folderName = mcStatus[0].replace(rank + " ", "") # remove rank from name
@@ -802,10 +808,7 @@ def checkMcStatus():
 
             timeElapsed = time.time()-startTm
             if timeElapsed > 120: # 2 minutes
-                if not firstMsg: 
-                    send_tele_msg("This is taking longer than expected\nCurrent progress: {:.1f}%".format((count/len(masterList))*100))
-                    firstMsg = True
-                else: send_tele_msg("Current progress: {:.1f}%".format((count/len(masterList))*100))
+                send_tele_msg("Current progress: {:.1f}%".format((count/len(masterList))*100))
                 startTm = time.time() 
 
         # write lapsed mc/status list to mc/status lapse tracking sheet
@@ -1042,7 +1045,7 @@ def autoCheckMA():
         foundMA = False
         pattern = r'\d{6}' # 6 consecutive digits i.e 6 digit date
         secondPattern = r'\d{2}\s[A-Z][a-z]{2}\s\d{2}' # e.g. 28 Aug 23
-        tele_msg = "Medical Appointments today({}{}{}):".format(datetime.now().day, (("0" + str(datetime.now().month)) if datetime.now().month < 10 else (str(datetime.now().month))), str(datetime.now().year).replace("20", ""))
+        tele_msg = "Medical Appointments today ({}{}{}):".format(datetime.now().day, (("0" + str(datetime.now().month)) if datetime.now().month < 10 else (str(datetime.now().month))), str(datetime.now().year).replace("20", ""))
         for index, ma in enumerate(mAs, start = 0):
             if ma == 'DETAILS': 
                 foundStart = True
@@ -1108,9 +1111,13 @@ def main(cetQ):
 
         time.sleep(5)
 
+reply_keyboard_all_commands = [["/checkmcstatus", "/checkconduct", "/checkall", "/updatedutygrp", "/updateconducttracking", "/generateIR"]]
+ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
+\n/checkall -> Check everything\n/updatedutygrp -> Update duty group and schedule CDS reminder according to CET\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree\
+\n/generateIR -> Help to generate IR"
+
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
-                                    \n/checkall -> Check everything\n/updatedutygrp -> Update duty group and schedule CDS reminder according to CET\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree")
+    await update.message.reply_text(ALL_COMMANDS)
 
 async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Checking for MC and Status Lapses...")
@@ -1125,7 +1132,7 @@ async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYP
     updateConductTracking()
 
 async def checkAllHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Checking for MC and Status Lapses...")
+    await update.message.reply_text("Checking for MC and Status Lapses. This might take a while.")
     checkMcStatus()
     await update.message.reply_text("Checking for conduct tracking updates...")
     checkConductTracking()
@@ -1133,7 +1140,7 @@ async def checkAllHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 ASK_CET = 1
 
 async def updateCet(update: Update, context: CallbackContext) -> int:
-    await update.message.reply_text("Send the new CET")
+    await update.message.reply_text("Send the new CET or send /cancel to cancel.")
     return ASK_CET
 
 async def updateDutyGrp(update: Update, context: CallbackContext) -> int:
@@ -1141,14 +1148,380 @@ async def updateDutyGrp(update: Update, context: CallbackContext) -> int:
     updateWhatsappGrp(cet)
     return ConversationHandler.END
 
-async def cancel(update: Update, context: CallbackContext) -> int:
+user_responses = {}
+usingPrevIR = False
+prevIRDetails = None
+findingName = False
+findingDateTime = False
+findingLocation = False
+checkingName = False
+nameTobeChecked = None
+NEW, CHECK_PREV_IR, PREV_IR, TRAINING, NAME, CHECK_PES, DATE_TIME, LOCATION, DESCRIPTION, STATUS, FOLLOW_UP, NOK, REPORTED_BY = range(13)
+
+async def start(update: Update, context: CallbackContext) -> int:
+    global user_responses, usingPrevIR, prevIRDetails, findingName, findingDateTime, findingLocation, checkingName, nameTobeChecked
+    user_responses = {}
+    usingPrevIR = False
+    prevIRDetails = None
+    findingName = False
+    findingDateTime = False
+    findingLocation = False
+    checkingName = False
+    nameTobeChecked = None
+    await update.message.reply_text("Send /cancel to cancel the IR generation any point in time.")
+    reply_keyboard = [['New', 'Update', 'Final']]
+    await update.message.reply_text(
+        "Is it a new/update/final report ?",
+        reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
+    )
+    return CHECK_PREV_IR
+
+async def checkPrevIR(update: Update, context: CallbackContext) -> int:
+    user_responses['new'] = update.message.text
+    if update.message.text == "Update" or update.message.text == "Final":
+        reply_keyboard = [['Yes', 'No']]
+        await update.message.reply_text(
+            "Is there a previous IR ?",
+            reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
+        )
+        return PREV_IR
+    else: return await new(update, context)
+
+async def prevIR(update: Update, context: CallbackContext) -> int:
+    if update.message.text == "Yes":
+        await update.message.reply_text("Send the previous IR")
+        return LOCATION
+    elif update.message.text == "No":
+        return await new(update, context)
+
+async def new(update: Update, context: CallbackContext) -> int:
+    reply_keyboard = [['Training', 'Non-Training']]
+    await update.message.reply_text(
+        "*Training* or *Non Training* related?",
+        reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
+        parse_mode='MarkdownV2'
+    )
+    return TRAINING
+
+async def training(update: Update, context: CallbackContext) -> int:
+    if not findingName: user_responses['training_related'] = update.message.text
+    if usingPrevIR and not findingName: return await location(update, context)
+    await update.message.reply_text("Please provide the name of the personnel involved:")
+    return NAME
+
+async def name(update: Update, context: CallbackContext) -> int:
+    global checkingName, nameTobeChecked
+    gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
+    sheet = gc.open("Charlie Nominal Roll")
+    cCoyNominalRollSheet = sheet.worksheet("COMPANY ORBAT")
+    allValues = cCoyNominalRollSheet.get_all_values()
+    formattedAllValues = list(zip(*allValues))[5]
+    if not checkingName: userInput = update.message.text
+    else: 
+        nameTobeChecked = nameTobeChecked.split(' ')
+        del nameTobeChecked[0] # remove rank
+        userInput = "".join(nameTobeChecked)
+
+    formatteduserInput = userInput.replace(" ", "").upper()
+    allMatches = list()
+    foundPersonnel = False
+    for index, value in enumerate(formattedAllValues, start = 0):
+        if formatteduserInput in value.replace(" ", "").upper():
+            allMatches.append(allValues[index][5])
+            user_responses['name'] = allValues[index]
+            foundPersonnel = True
+    if len(allMatches) > 1: # more than one match found
+        reply_keyboard = [allMatches]
+        await update.message.reply_text(
+            "Please specify the personnel involved:",
+            reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
+        return NAME
+    if user_responses['name'][15] == "":
+        reply_keyboard = [['A', 'B1']]
+        await update.message.reply_text(
+            "What is the PES status of {} ?".format(userInput),
+            reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
+        return CHECK_PES
+    if not foundPersonnel: 
+        await update.message.reply_text("Unable to find {}. Please provide another name:".format(userInput))
+        return NAME
+    if findingName or checkingName: return await location(update, context)
+    await update.message.reply_text("Please provide the date and time of the incident (e.g. 310124 1430):")
+    return DATE_TIME
+
+async def checkPes(update: Update, context: CallbackContext) -> int:
+    global findingDateTime, checkingName
+    if not findingDateTime:
+        allPesStatus = ['A', 'B1', 'B2', 'B3', 'B4', 'C2', 'C9', 'D', 'E1', 'E9', 'F', 'BP']
+        pes = update.message.text
+        if pes not in allPesStatus: 
+            await update.message.reply_text("Unknown PES Status: {}. Please send another PES status:".format(pes))
+            return CHECK_PES
+        user_responses['name'][15] = pes
+    if findingName or checkingName: return await location(update, context)
+    await update.message.reply_text("Please provide the date and time of the incident (e.g. 310124 1430):")
+    return DATE_TIME
+
+async def date_time(update: Update, context: CallbackContext) -> int:
+    global findingLocation
+    if not findingLocation:
+        userInput = update.message.text.replace(" ", "")
+        if len(userInput) != 10:
+            await update.message.reply_text("Unrecognised datetime {}. Please provide another date and time in the format (310124 1430):".format(update.message.text))
+            return DATE_TIME
+        user_responses['date_time'] = userInput
+        if usingPrevIR: return await location(update, context)
+    reply_keyboard = [["Serviceman's Residence", 'Bedok Camp 2']]
+    await update.message.reply_text(
+        "Location of incident ?", 
+        reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),)
+    return LOCATION
+
+async def location(update: Update, context: CallbackContext) -> int:
+    response = update.message.text # could be a previous IR or just purely location
+    global usingPrevIR, prevIRDetails, user_responses, checkingName, nameTobeChecked, findingName, findingDateTime, findingLocation
+    if "INCIDENT" in response or usingPrevIR: # previous IR
+        usingPrevIR = True
+        if "INCIDENT" in response: prevIRDetails = response
+        lines = prevIRDetails.split('\n')
+        try: 
+            natureOfIncident = user_responses['training_related']
+            foundNatureOfIncident = True
+        except KeyError:
+            foundNatureOfIncident = False
+            natureOfIncident = None
+        try:
+            name_t = user_responses['name']
+            foundName = True
+        except KeyError:
+            foundName = False
+            name_t = None
+        try:
+            dateTime = user_responses['date_time']
+            foundDateTime = True
+        except KeyError:
+            foundDateTime = False
+            dateTime = None
+        try:
+            location = user_responses['location']
+            foundLocation = True
+        except KeyError:
+            foundLocation = False
+            location = None
+        try: 
+            description = user_responses['description']
+            foundDescription = True
+        except KeyError: 
+            foundDescription = False
+            description = None
+
+        for line in lines:
+            if not foundNatureOfIncident and line.replace("*", "").replace(" ", "").replace(":", "") == "1)NatureandTypeofIncident":
+                foundNatureOfIncident = True
+                continue
+            if not foundNatureOfIncident: continue
+            if line == "": continue
+            if natureOfIncident is None: 
+                user_responses['training_related'] = line.replace(" Related", "").replace("Related", "")
+                natureOfIncident = line.replace(" Related", "").replace("Related", "")
+                continue
+
+            if not foundName and line.replace("*", "").replace(" ", "").replace(":", "") == "2)DetailsofPersonnelInvolved":
+                foundName = True
+                continue
+            if not foundName: continue
+            if line == "": continue
+            if name_t is None: 
+                checkingName = True
+                nameTobeChecked = line
+                return await name(update, context)
+            checkingName = False
+            nameTobeChecked = None
+
+            if not foundDateTime and line.replace("*", "").replace(" ", "").replace(":", "") == "3)Date&TimeofIncident":
+                foundDateTime = True
+                continue
+            if not foundDateTime: continue
+            if line == "": continue
+            if dateTime is None:
+                dateTime = line.replace("/", "").replace(" ", "").replace("hrs", "").replace("hr", "")
+                user_responses['date_time'] = line.replace("/", "").replace(" ", "").replace("hrs", "").replace("hr", "")
+                continue
+
+            if not foundLocation and line.replace("*", "").replace(" ", "").replace(":", "") == "4)LocationofIncident":
+                foundLocation = True
+                continue
+            if not foundLocation: continue
+            if line == "": continue
+            if location is None:
+                location = line
+                user_responses['location'] = line
+                continue
+
+            if not foundDescription and line.replace("*", "").replace(" ", "") == "5)BriefDescription":
+                foundDescription = True
+                continue
+            if not foundDescription: continue
+            description = line
+            break
+        
+        if natureOfIncident is not None and natureOfIncident in ['Training', 'Non-Training']: user_responses['training_related'] = natureOfIncident
+        else: return await new(update, context)
+
+        if name_t is None: 
+            findingName = True
+            return await training(update, context)
+        findingName = False
+        
+        if dateTime is None: 
+            findingDateTime = True
+            return await checkPes(update, context)
+        findingDateTime = False
+
+        if location is None: 
+            findingLocation = True
+            return await date_time(update, context)
+        findingLocation = False
+
+        if description is not None:
+            reply_keyboard = [['No Changes']]
+            await update.message.reply_text("Please update the description following the below text")
+            await update.message.reply_text(
+                description, 
+                reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
+            user_responses['description'] = description
+            return DESCRIPTION
+        else:
+            await update.message.reply_text("Please write the description following the below text")
+            await update.message.reply_text("On {} at about {}hrs, {} {}...".format(user_responses['date_time'][:6], user_responses['date_time'][-4:], user_responses['name'][4], user_responses['name'][5]))
+            return DESCRIPTION
+
+    else:
+        user_responses['location'] = update.message.text
+        await update.message.reply_text("Please write the description following the below text")
+        await update.message.reply_text("On {} at about {}hrs, {} {}...".format(user_responses['date_time'][:6], user_responses['date_time'][-4:], user_responses['name'][4], user_responses['name'][5]))
+        return DESCRIPTION
+
+async def description(update: Update, context: CallbackContext) -> int:
+    if update.message.text != 'No Changes':
+        user_responses['description'] = "On {} at about {}hrs, {} {} ".format(user_responses['date_time'][:6], user_responses['date_time'][-4:], user_responses['name'][4], user_responses['name'][5]) + update.message.text
+    await update.message.reply_text("What is the current status?")
+    return STATUS
+
+async def status(update: Update, context: CallbackContext) -> int:
+    user_responses['status'] = update.message.text
+    if user_responses['new'] == "Final": reply_keyboard = [['Unit will proceed to close the case.']]
+    elif user_responses['new'] == "New" or user_responses['new'] == "Update": reply_keyboard = [['Unit will monitor and update accordingly.']]
+    else: reply_keyboard = [['Unit will monitor and update accordingly.', 'Unit will proceed to close the case.']]
+    await update.message.reply_text(
+        "Follow-up actions?", 
+        reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
+    return FOLLOW_UP
+
+async def follow_up(update: Update, context: CallbackContext) -> int:
+    user_responses['follow_up'] = update.message.text
+    reply_keyboard = [['Yes', 'No']]
+    await update.message.reply_text(
+        "Has the NOK (Next of Kin) been informed? (Yes/No)",
+        reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
+    return NOK
+
+async def nok(update: Update, context: CallbackContext) -> int:
+    user_responses['nok_informed'] = update.message.text
+    await update.message.reply_text("Who is reporting this incident?")
+    return REPORTED_BY
+
+async def reported_by(update: Update, context: CallbackContext) -> int:
+    userInput = update.message.text
+    gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
+    sheet = gc.open("Charlie Nominal Roll")
+    cCoyNominalRollSheet = sheet.worksheet("COMPANY ORBAT")
+    allValues = cCoyNominalRollSheet.get_all_values()
+    formattedAllValues = list(zip(*allValues))[5]
+    formatteduserInput = userInput.replace(" ", "").upper()
+    reportingPerson = None
+    allMatches = list()
+    for index, value in enumerate(formattedAllValues, start = 0):
+        if formatteduserInput in value.replace(" ", ""):
+            allMatches.append(allValues[index][5])
+            reportingPerson = allValues[index]
+    if len(allMatches) > 1:
+        reply_keyboard = [allMatches]
+        await update.message.reply_text(
+            "Please specify the reporting personnel:",
+            reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
+        return REPORTED_BY
+    if reportingPerson is None: 
+        await update.message.reply_text("Unable to find {}. Please provide another name:".format(userInput))
+        return REPORTED_BY
+    user_responses['reported_by'] = reportingPerson
+    await update.message.reply_text("Generating IR...")
+    await update.message.reply_text("*INCIDENT REPORT*\n\
+*{}: 3 GDS {} RELATED REPORT*\n\
+\n\
+*1) Nature and Type of Incident:*\n\
+{} Related\n\
+\n\
+*2) Details of Personnel Involved*\n\
+{} {}\n\
+{}\n\
+3GDS/C COY\n\
+PES {}\n\
+\n\
+*3) Date & Time of Incident*\n\
+{} / {}hrs\n\
+\n\
+*4) Location of Incident*\n\
+{}\n\
+\n\
+*5) Brief Description*\n\
+{}\n\
+\n\
+*6) Current Status:*\n\
+{}\n\
+\n\
+*7) Follow Up Action*\n\
+{}\n\
+\n\
+*8) NOK Informed?*\n\
+{}\n\
+\n\
+*9) HHQ/GSOC Informed?*\n\
+Verbal Report - No\n\
+HQ 7SIB - No\n\
+HQ GDS - No\n\
+GSOC - No\n\
+ASIS Report - No\n\
+\n\
+*10) Reported By:*\n\
+{} {}\n\
+(HP: {} {})".format(user_responses['new'].upper(), user_responses['training_related'].upper(),
+        user_responses['training_related'],
+        user_responses['name'][4], user_responses['name'][5],
+        user_responses['name'][3],
+        user_responses['name'][15],
+        user_responses['date_time'][:6], user_responses['date_time'][-4:],
+        user_responses['location'],
+        user_responses['description'],
+        user_responses['status'],
+        user_responses['follow_up'],
+        user_responses['nok_informed'],
+        reportingPerson[4], reportingPerson[5],
+        reportingPerson[8][:4], reportingPerson[8][-4:]))
+    await update.message.reply_text("Copy and paste the generated IR to WhatsApp")
+    return ConversationHandler.END
+
+async def cancel_ir(update: Update, context: CallbackContext) -> int:
+    await update.message.reply_text("IR generation cancelled.")
+    return ConversationHandler.END
+
+async def cancel_dutygrp(update: Update, context: CallbackContext) -> int:
     await update.message.reply_text('Updating cancelled')
     return ConversationHandler.END
 
 async def unknownCommand(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("Unrecognised command.")
-    await update.message.reply_text("Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
-                                    \n/checkall -> Check everything\n/updatedutygrp -> Update duty group according to CET\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree")
+    await update.message.reply_text(ALL_COMMANDS, replyMarkup=telegram.ReplyKeyboardMarkup(reply_keyboard_all_commands, one_time_keyboard=True, resize_keyboard=True))
 
 def telegram_manager() -> None:
 
@@ -1162,23 +1535,44 @@ def telegram_manager() -> None:
     application.add_handler(CommandHandler("updateconducttracking", updateConductHandler))
 
     # Add a conversation handler for the new command
-    conv_handler = ConversationHandler(
+    conv_dutygrp_handler = ConversationHandler(
         entry_points=[CommandHandler('updatedutygrp', updateCet)],
         states={
             ASK_CET: [MessageHandler(filters.TEXT & ~filters.COMMAND, updateDutyGrp)],
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
+        fallbacks=[CommandHandler('cancel', cancel_dutygrp)],
     )
 
+    conv__IR_handler = ConversationHandler(
+        entry_points=[CommandHandler('generateIR', start)],
+        states={
+            NEW: [MessageHandler(filters.TEXT & ~filters.COMMAND, new)],
+            CHECK_PREV_IR: [MessageHandler(filters.TEXT & ~filters.COMMAND, checkPrevIR)],
+            PREV_IR: [MessageHandler(filters.TEXT & ~filters.COMMAND, prevIR)],
+            TRAINING: [MessageHandler(filters.TEXT & ~filters.COMMAND, training)],
+            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, name)],
+            CHECK_PES: [MessageHandler(filters.TEXT & ~filters.COMMAND, checkPes)],
+            DATE_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, date_time)],
+            LOCATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, location)],
+            DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, description)],
+            STATUS: [MessageHandler(filters.TEXT & ~filters.COMMAND, status)],
+            FOLLOW_UP: [MessageHandler(filters.TEXT & ~filters.COMMAND, follow_up)],
+            NOK: [MessageHandler(filters.TEXT & ~filters.COMMAND, nok)],
+            REPORTED_BY: [MessageHandler(filters.TEXT & ~filters.COMMAND, reported_by)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel_ir)],)
+
     # Add the conversation handler
-    application.add_handler(conv_handler)
+    application.add_handler(conv_dutygrp_handler)
+    application.add_handler(conv__IR_handler)
     application.add_handler(MessageHandler(filters.COMMAND, unknownCommand))
     application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
 
 if __name__ == '__main__':
 
-    send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together. Send /help for list of available commands.")
-    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.")
+    send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
+    send_tele_msg(ALL_COMMANDS)
+    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", replyMarkup=telegram.ReplyKeyboardMarkup(reply_keyboard_all_commands, one_time_keyboard=True, resize_keyboard=True))
     cetQueue = multiprocessing.Queue()
     mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue,))
     mainCheckMcProcess.start()
