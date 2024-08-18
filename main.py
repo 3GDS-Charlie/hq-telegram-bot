@@ -1521,7 +1521,7 @@ async def cancel_dutygrp(update: Update, context: CallbackContext) -> int:
 
 async def unknownCommand(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("Unrecognised command.")
-    await update.message.reply_text(ALL_COMMANDS, replyMarkup=telegram.ReplyKeyboardMarkup(reply_keyboard_all_commands, one_time_keyboard=True, resize_keyboard=True))
+    await update.message.reply_text(ALL_COMMANDS)
 
 def telegram_manager() -> None:
 
@@ -1572,7 +1572,7 @@ if __name__ == '__main__':
 
     send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
     send_tele_msg(ALL_COMMANDS)
-    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", replyMarkup=telegram.ReplyKeyboardMarkup(reply_keyboard_all_commands, one_time_keyboard=True, resize_keyboard=True))
+    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.")
     cetQueue = multiprocessing.Queue()
     mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue,))
     mainCheckMcProcess.start()
