@@ -1556,8 +1556,8 @@ def blocking(callback):
 
 async def test_blocking(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("Blocking...")
-    def finished(message):
-        context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+    async def finished(message):
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
     future = executor.submit(blocking, finished)
 
 def telegram_manager() -> None:
