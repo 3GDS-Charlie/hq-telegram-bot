@@ -1549,7 +1549,7 @@ async def unknownCommand(update: Update, context: CallbackContext) -> None:
 
 async def test_blocking(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("Blocking...")
-    await time.sleep(10)
+    await asyncio.sleep(10)
     await update.message.reply_text("Unblocked")
 
 async def telegram_manager() -> None:
