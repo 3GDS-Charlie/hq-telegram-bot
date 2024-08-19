@@ -26,7 +26,7 @@ import asyncio
 import nest_asyncio
 nest_asyncio.apply() # patch asyncio
 import multiprocessing
-from multiprocessing import pool
+import threading
 MAX_MESSAGE_LENGTH = 4096
 
 # Pytesseract OCR + Super Resolution Libraries
@@ -58,8 +58,6 @@ monthConversion = {"Jan":"01", "January":"01", "Feb":"02", "February":"02", "Mar
 trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
-
-multiprocesingPool = pool.Pool()
 
 ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
 
@@ -1556,7 +1554,8 @@ def blocking(receiver_id = None):
 
 async def test_blocking(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("Blocking...")
-    multiprocesingPool.apply_async(blocking, args=(str(update.effective_user.id)))
+    t1 = threading.Thread(target=blocking, args=(str(update.effective_user.id),))
+    t1.start()
 
 def telegram_manager() -> None:
 
