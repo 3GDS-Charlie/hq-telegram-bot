@@ -23,8 +23,8 @@ import telegram
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackContext, ConversationHandler, MessageHandler, filters
 import asyncio
-import nest_asyncio
-nest_asyncio.apply() # patch asyncio
+# import nest_asyncio
+# nest_asyncio.apply() # patch asyncio
 import multiprocessing
 MAX_MESSAGE_LENGTH = 4096
 
