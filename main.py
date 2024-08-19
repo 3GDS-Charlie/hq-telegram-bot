@@ -1554,8 +1554,8 @@ def blocking():
     time.sleep(10)
     return "Unblocked"
 
-async def test_blocking(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text("Blocking...")
+def test_blocking(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text("Blocking...")
     future = executor.submit(blocking)
     result = future.result()
     update.message.reply_text(result)
