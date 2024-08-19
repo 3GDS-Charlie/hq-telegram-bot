@@ -1526,8 +1526,14 @@ ASIS Report - No\n\
     return ConversationHandler.END
 
 async def cancel_ir(update: Update, context: CallbackContext) -> int:
-    if str(update.effective_user.id) in list(CHANNEL_IDS.values()):
+    if str(update.effective_user.id) in list(SUPERUSERS.values()):
         await update.message.reply_text("IR generation cancelled.")
+        return ConversationHandler.END
+    elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
+        await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
+        return ConversationHandler.END
+    else: 
+        await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
         return ConversationHandler.END
 
 async def cancel_dutygrp(update: Update, context: CallbackContext) -> int:
@@ -1541,16 +1547,16 @@ async def unknownCommand(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text(ALL_COMMANDS)
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
-def telegram_manager() -> None:
+async def telegram_manager() -> None:
 
     application = Application.builder().token(TELEGRAM_CHANNEL_BOT_TOKEN).build()
 
-    #Add handlers
-    application.add_handler(CommandHandler("help", helpHandler))
-    application.add_handler(CommandHandler("checkmcstatus", checkMcStatusHandler))
-    application.add_handler(CommandHandler("checkconduct", checkConductHandler))
-    application.add_handler(CommandHandler("checkall", checkAllHandler))
-    application.add_handler(CommandHandler("updateconducttracking", updateConductHandler))
+    # Add handlers
+    await application.add_handler(CommandHandler("help", helpHandler))
+    await application.add_handler(CommandHandler("checkmcstatus", checkMcStatusHandler))
+    await application.add_handler(CommandHandler("checkconduct", checkConductHandler))
+    await application.add_handler(CommandHandler("checkall", checkAllHandler))
+    await application.add_handler(CommandHandler("updateconducttracking", updateConductHandler))
 
     # Add a conversation handler for the new command
     conv_dutygrp_handler = ConversationHandler(
@@ -1581,10 +1587,10 @@ def telegram_manager() -> None:
         fallbacks=[CommandHandler('cancel', cancel_ir)],)
 
     # Add the conversation handler
-    application.add_handler(conv_dutygrp_handler)
-    application.add_handler(conv__IR_handler)
-    application.add_handler(MessageHandler(filters.COMMAND, unknownCommand))
-    application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
+    await application.add_handler(conv_dutygrp_handler)
+    await application.add_handler(conv__IR_handler)
+    await application.add_handler(MessageHandler(filters.COMMAND, unknownCommand))
+    await application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
 
 if __name__ == '__main__':
 
@@ -1594,4 +1600,4 @@ if __name__ == '__main__':
     cetQueue = multiprocessing.Queue()
     mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue,))
     mainCheckMcProcess.start()
-    telegram_manager()
+    asyncio.run(telegram_manager())
