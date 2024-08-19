@@ -1552,11 +1552,11 @@ async def telegram_manager() -> None:
     application = Application.builder().token(TELEGRAM_CHANNEL_BOT_TOKEN).build()
 
     # Add handlers
-    await application.add_handler(CommandHandler("help", helpHandler))
-    await application.add_handler(CommandHandler("checkmcstatus", checkMcStatusHandler))
-    await application.add_handler(CommandHandler("checkconduct", checkConductHandler))
-    await application.add_handler(CommandHandler("checkall", checkAllHandler))
-    await application.add_handler(CommandHandler("updateconducttracking", updateConductHandler))
+    application.add_handler(CommandHandler("help", helpHandler))
+    application.add_handler(CommandHandler("checkmcstatus", checkMcStatusHandler))
+    application.add_handler(CommandHandler("checkconduct", checkConductHandler))
+    application.add_handler(CommandHandler("checkall", checkAllHandler))
+    application.add_handler(CommandHandler("updateconducttracking", updateConductHandler))
 
     # Add a conversation handler for the new command
     conv_dutygrp_handler = ConversationHandler(
@@ -1587,9 +1587,9 @@ async def telegram_manager() -> None:
         fallbacks=[CommandHandler('cancel', cancel_ir)],)
 
     # Add the conversation handler
-    await application.add_handler(conv_dutygrp_handler)
-    await application.add_handler(conv__IR_handler)
-    await application.add_handler(MessageHandler(filters.COMMAND, unknownCommand))
+    application.add_handler(conv_dutygrp_handler)
+    application.add_handler(conv__IR_handler)
+    application.add_handler(MessageHandler(filters.COMMAND, unknownCommand))
     await application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
 
 if __name__ == '__main__':
