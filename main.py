@@ -570,7 +570,7 @@ async def checkMcStatus(receiver_id = None):
         gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
         sheet = gc.open("3GDS CHARLIE PARADE STATE")
         cCoySheet = sheet.worksheet("C COY")
-        allValues = await cCoySheet.get_all_values()
+        allValues = cCoySheet.get_all_values()
         allValues = list(zip(*allValues))
         platoonMc = allValues[5] # column F
         sectionMc = allValues[6] # column G
@@ -610,7 +610,7 @@ async def checkMcStatus(receiver_id = None):
         # read existing MC/Status entries from mc lapse sheet
         mcStatusLapseSheet = gc.open("MC/Status Lapse Tracking")
         mcLapse = mcStatusLapseSheet.worksheet("MC")
-        allValues = await mcLapse.get_all_values()
+        allValues = mcLapse.get_all_values()
         allValues = list(zip(*allValues))
         sheetMcList = list(filter(None, allValues[0])) # column A
         mcStartDates = list(filter(None, allValues[1])) # column B
@@ -630,7 +630,7 @@ async def checkMcStatus(receiver_id = None):
         mcList = list(set(mcList)) # remove duplicate entries
 
         statusLapse = mcStatusLapseSheet.worksheet("Status")
-        allValues = await statusLapse.get_all_values()
+        allValues = statusLapse.get_all_values()
         allValues = list(zip(*allValues))
         sheetStatusList = list(filter(None, allValues[0])) # column A
         statusStartDates = list(filter(None, allValues[1])) # column B
@@ -651,7 +651,7 @@ async def checkMcStatus(receiver_id = None):
 
         # Get already checked MC/Status entries
         mcStatusChecked = mcStatusLapseSheet.worksheet("Checked")
-        allValues = await mcStatusChecked.get_all_values()
+        allValues = mcStatusChecked.get_all_values()
         allValues = list(zip(*allValues))
         sheetMcStatusList = list(filter(None, allValues[0])) # column A
         mcStatusStartDates = list(filter(None, allValues[1])) # column B
