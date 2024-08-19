@@ -5,6 +5,7 @@ from dotenv import load_dotenv, dotenv_values
 
 load_dotenv()
 
+# For Google related APIs
 SERVICE_ACCOUNT_CREDENTIAL = {
     "type": os.getenv("SERVICE_ACCOUNT_CREDENTIAL_TYPE"),
     "project_id": os.getenv("SERVICE_ACCOUNT_CREDENTIAL_PROJECT_ID"),
@@ -19,11 +20,19 @@ SERVICE_ACCOUNT_CREDENTIAL = {
     "universe_domain": os.getenv("SERVICE_ACCOUNT_CREDENTIAL_UNIVERSE_DOMAIN"),
 }
 
+# For extracting training programme
 TIMETREE_USERNAME=os.getenv("TIMETREEUSER")
 TIMETREE_PASSWORD=os.getenv("TIMETREEPWD")
 TIMETREE_CALENDAR_ID=os.getenv("CALENDARID")
 
 TELEGRAM_CHANNEL_BOT_TOKEN=os.getenv("TELEGRAM_CHANNEL_BOT_TOKEN")
+
+# SUPERUSERS should be a subset of CHANNEL_IDS
+SUPERUSERS = {
+    # "ZE_YEUNG": os.getenv("TELEGRAM_CHANNEL_ID_ZE_YEUNG"),
+    "KEI_LOK": os.getenv("TELEGRAM_CHANNEL_ID_KEI_LOK"),
+    "LIANG_DING": os.getenv("TELEGRAM_CHANNEL_ID_LIANG_DING"),
+}
 
 CHANNEL_IDS = {
     "ZE_YEUNG": os.getenv("TELEGRAM_CHANNEL_ID_ZE_YEUNG"),
@@ -31,6 +40,7 @@ CHANNEL_IDS = {
     "LIANG_DING": os.getenv("TELEGRAM_CHANNEL_ID_LIANG_DING"),
 }
 
+# WhatsApp related APIs
 DUTY_GRP_ID = os.getenv("DUTY_GROUP_ID")
 CHARLIE_Y2_ID = os.getenv("CHARLIE_Y2_GROUP_ID")
 ID_INSTANCE = os.getenv("API_ID_INSTANCE")
@@ -61,7 +71,7 @@ CHARLIE_DUTY_CMDS = {"ZEYEUNG":os.getenv("ZEYEUNG_NUMBER"),
                       "SRIRAM":os.getenv("SRIRAM_NUMBER")
 }
 
-# 4 PS + 4 PC + 2 HQ Spec
+# 4 PS + PC + 2 HQ Spec
 PERM_DUTY_CMDS = {"ZEYEUNG":os.getenv("ZEYEUNG_NUMBER"), 
                   "LIANGDING":os.getenv("LIANGDING_NUMBER"), 
                   "KEILOK":os.getenv("KEILOK_NUMBER"), 

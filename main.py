@@ -5,7 +5,7 @@ import gspread
 import platform
 from gspread_formatting import *
 from datetime import datetime, timedelta
-from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS, DUTY_GRP_ID, CHARLIE_Y2_ID, ID_INSTANCE, TOKEN_INSTANCE, CHARLIE_DUTY_CMDS, PERM_DUTY_CMDS, TIMETREE_USERNAME, TIMETREE_PASSWORD, TIMETREE_CALENDAR_ID
+from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS, SUPERUSERS, DUTY_GRP_ID, CHARLIE_Y2_ID, ID_INSTANCE, TOKEN_INSTANCE, CHARLIE_DUTY_CMDS, PERM_DUTY_CMDS, TIMETREE_USERNAME, TIMETREE_PASSWORD, TIMETREE_CALENDAR_ID
 import traceback
 import copy
 
@@ -58,22 +58,21 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
-TELE_ALL_MEMBERS = True # Flag to send tele messages to all listed members
+ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
 
-def send_tele_msg(msg, parseMode = None, replyMarkup = None):
+def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None):
 
     """
+        receiver_id -> Specify a user id to send to instead of all whitelisted 
         parseMode = 'MarkdownV2'
+        replyMarkup for keyboards
     """
-
-    if TELE_ALL_MEMBERS:
+    if not isinstance(receiver_id, str): receiver_id = str(receiver_id)
+    
+    if receiver_id is None:
         for _, value in CHANNEL_IDS.items():
             asyncio.run(send_telegram_bot_msg(msg, value, parseMode, replyMarkup))
-    else: 
-        for _, value in CHANNEL_IDS.items():
-            asyncio.run(send_telegram_bot_msg(msg, value, parseMode, replyMarkup))
-            break
+    elif receiver_id in list(CHANNEL_IDS.values()): asyncio.run(send_telegram_bot_msg(msg, receiver_id, parseMode, replyMarkup))
 
 async def send_telegram_bot_msg(msg, channel_id, parseMode, replyMarkup):
     try: 
@@ -563,7 +562,7 @@ def updateConductTracking():
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
 
-def checkMcStatus():
+def checkMcStatus(receiver_id = None):
 
     startTm = time.time()
     try:
@@ -808,13 +807,13 @@ def checkMcStatus():
 
             timeElapsed = time.time()-startTm
             if timeElapsed > 120: # 2 minutes
-                send_tele_msg("Current progress: {:.1f}%".format((count/len(masterList))*100))
+                send_tele_msg("Current progress: {:.1f}%".format((count/len(masterList))*100), receiver_id=receiver_id)
                 startTm = time.time() 
 
         # write lapsed mc/status list to mc/status lapse tracking sheet
         mcLapse.batch_clear(['A2:G1000'])
         statusLapse.batch_clear(['A2:G1000'])
-        if len(lapseMcList) == 0: send_tele_msg("No MC lapses")
+        if len(lapseMcList) == 0: send_tele_msg("No MC lapses", receiver_id=receiver_id)
         else:
             lapseMcList = sorted(lapseMcList, key=lambda x: datetime.strptime(x[1], "%d %b %y"), reverse=True)
             tele_msg = "Lapsed MC List:"
@@ -828,9 +827,9 @@ def checkMcStatus():
                                       gspread.cell.Cell(index, 7, mc[7])])
                 if mc in possibleMcList: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {} (Possible MC found)\n{}\n{}\n".format(mc[1], mc[2], mc[6], mc[7])])
                 else: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n{}\n".format(mc[1], mc[2], mc[6], mc[7])])
-            send_tele_msg(tele_msg)
+            send_tele_msg(tele_msg, receiver_id=receiver_id)
         
-        if len(lapseStatusList) == 0: send_tele_msg("No Status lapses")
+        if len(lapseStatusList) == 0: send_tele_msg("No Status lapses", receiver_id=receiver_id)
         else:
             lapseStatusList = sorted(lapseStatusList, key=lambda x: datetime.strptime(x[1], "%d %b %y"), reverse=True)
             tele_msg = "Lapsed Status List:"
@@ -845,9 +844,9 @@ def checkMcStatus():
                 if status in possibleStatusList: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {} (Possible status found)\n{}\n{}\n".format(status[1], status[2], status[6], status[7])])
                 else: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n{}\n".format(status[1], status[2], status[6], status[7])])
                 if len(tele_msg) > MAX_MESSAGE_LENGTH-1000:
-                    send_tele_msg(tele_msg)
+                    send_tele_msg(tele_msg, receiver_id=receiver_id)
                     tele_msg = "Lapsed Status List:"
-            send_tele_msg(tele_msg)
+            send_tele_msg(tele_msg, receiver_id=receiver_id)
     
         # Write checked mc/status files to avoid repeated checks
         mcStatusChecked.batch_clear(['A2:H1000'])
@@ -865,7 +864,7 @@ def checkMcStatus():
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
 
-def checkConductTracking():
+def checkConductTracking(receiver_id = None):
 
     try:
         gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
@@ -880,7 +879,7 @@ def checkConductTracking():
                 colIndexes.append(index)
                 foundIndexes = True
             elif foundIndexes and date != currentDate and date != "": break
-        if len(colIndexes) == 0: send_tele_msg("No conducts today")
+        if len(colIndexes) == 0: send_tele_msg("No conducts today", receiver_id=receiver_id)
 
         # for each conduct TODAY
         for index in colIndexes:
@@ -924,13 +923,13 @@ def checkConductTracking():
                 if not set(p9TrackingStatus) == {True} and not set(p9TrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "P9 partially updated"])
                 if set(p9TrackingStatus) == {False}: updatedMsg = "\n".join([updatedMsg, "P9 not updated"])
                 if "not updated" in updatedMsg or "partially updated" in updatedMsg: updatedMsg = "\n".join([updatedMsg, "https://docs.google.com/spreadsheets/d/1TBHzKqmEHmyONaMQJoqt4HWwdsoY0pRSEv8WSoXDmyw/edit?gid=1000647342#gid=1000647342"])
-            send_tele_msg(updatedMsg)
+            send_tele_msg(updatedMsg, receiver_id=receiver_id)
         
     except Exception as e:
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
 
-def updateWhatsappGrp(cet):
+def updateWhatsappGrp(cet, receiver_id = None):
     
     dutyGrpId = DUTY_GRP_ID
     greenAPI = API.GreenAPI(ID_INSTANCE, TOKEN_INSTANCE)
@@ -957,10 +956,10 @@ def updateWhatsappGrp(cet):
                 cetQueue.put((newDate, fpTime))
         if noFPTimeFound: 
             cetQueue.put(None)
-            send_tele_msg("No FP time found. CDS reminder not scheduled.")
+            send_tele_msg("No FP time found. CDS reminder not scheduled.", receiver_id=receiver_id)
         if (CDS is None and PDS7 is None and PDS8 is None and PDS9 is None) or newDate is None: raise Exception
     except Exception as e: 
-        send_tele_msg("Unrecognized CET")
+        send_tele_msg("Unrecognized CET", receiver_id=receiver_id)
         return
     
     # Renaming of group name
@@ -974,19 +973,19 @@ def updateWhatsappGrp(cet):
     response = rq.post(url, json=payload)
     if response.status_code == 200: group_data = response.json()
     else: 
-        send_tele_msg("Failed to retrieve group data: {}\nAborting updating duty group.".format(response.json()))
+        send_tele_msg("Failed to retrieve group data: {}\nAborting updating duty group.".format(response.json()), receiver_id=receiver_id)
         group_data = None
         return
     if group_data is not None: 
         nextDutyCmds = []
         try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[CDS])
-        except KeyError: send_tele_msg("Unknown CDS: {}".format(CDS))
+        except KeyError: send_tele_msg("Unknown CDS: {}".format(CDS), receiver_id=receiver_id)
         try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS7])
-        except KeyError: send_tele_msg("Unknown PDS7: {}".format(PDS7))
+        except KeyError: send_tele_msg("Unknown PDS7: {}".format(PDS7), receiver_id=receiver_id)
         try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS8])
-        except KeyError: send_tele_msg("Unknown PDS8: {}".format(PDS8))
+        except KeyError: send_tele_msg("Unknown PDS8: {}".format(PDS8), receiver_id=receiver_id)
         try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS9])
-        except KeyError: send_tele_msg("Unknown PDS9: {}".format(PDS9))
+        except KeyError: send_tele_msg("Unknown PDS9: {}".format(PDS9), receiver_id=receiver_id)
         allMembers = group_data['participants']
         for member in allMembers:
             memberId = member['id'].split('@c.us')[0][2:]
@@ -994,18 +993,10 @@ def updateWhatsappGrp(cet):
                 if ENABLE_WHATSAPP_API: greenAPI.groups.removeGroupParticipant(dutyGrpId, member['id']) 
 
     # Adding new duty members
-    if CDS not in CHARLIE_DUTY_CMDS: pass #send_tele_msg("CDS {} not found".format(CDS))
-    else: 
-        if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[CDS]))
-    if PDS7 not in CHARLIE_DUTY_CMDS: pass #send_tele_msg("PDS7 {} not found".format(PDS7))
-    else: 
-        if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS7]))
-    if PDS8 not in CHARLIE_DUTY_CMDS: pass# send_tele_msg("PDS8 {} not found".format(PDS8))
-    else: 
-        if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS8]))
-    if PDS9 not in CHARLIE_DUTY_CMDS: pass# send_tele_msg("PDS9 {} not found".format(PDS9))
-    else: 
-        if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS9]))
+    if CDS in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[CDS]))
+    if PDS7 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS7]))
+    if PDS8 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS8]))
+    if PDS9 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS9]))
 
     # Sending new CET
     if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(dutyGrpId, cet)
@@ -1018,7 +1009,7 @@ def updateWhatsappGrp(cet):
     response = rq.post(url, json=payload)
     if response.status_code == 200: group_data = response.json()
     else: 
-        send_tele_msg("Unable to check whether all members were added successfully: {}.".format(response.json()))
+        send_tele_msg("Unable to check whether all members were added successfully: {}.".format(response.json()), receiver_id=receiver_id)
         group_data = None
     if group_data is not None: 
         allMembers = group_data['participants']
@@ -1028,9 +1019,9 @@ def updateWhatsappGrp(cet):
             if memberId not in allMemberNumbers:
                 for name, number in CHARLIE_DUTY_CMDS.items():
                     if memberId == number: 
-                        send_tele_msg("{} - {} was not added succesfully".format(name.replace("3SG", "").replace("2SG", ""), memberId))
+                        send_tele_msg("{} - {} was not added succesfully".format(name.replace("3SG", "").replace("2SG", ""), memberId), receiver_id=receiver_id)
                         break
-    send_tele_msg("Updated duty group")
+    send_tele_msg("Updated duty group", receiver_id=receiver_id)
 
 def autoCheckMA():
     try:
@@ -1121,21 +1112,28 @@ ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status Lapse
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         await update.message.reply_text(ALL_COMMANDS)
+    else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         await update.message.reply_text("Checking for MC and Status Lapses...")
-        checkMcStatus()
+        checkMcStatus(str(update.effective_user.id))
+    else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 async def checkConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         await update.message.reply_text("Checking for conduct tracking updates...")
-        checkConductTracking()
+        checkConductTracking(str(update.effective_user.id))
+    else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
+    if str(update.effective_user.id) in list(SUPERUSERS.values()):
         await update.message.reply_text("Updating conduct tracking...")
-        updateConductTracking()
+        updateConductTracking(str(update.effective_user.id))
+    elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
+        await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
+    else: 
+        await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 async def checkAllHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
@@ -1143,17 +1141,24 @@ async def checkAllHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         checkMcStatus()
         await update.message.reply_text("Checking for conduct tracking updates...")
         checkConductTracking()
+    else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 ASK_CET = 1
 
 async def updateCet(update: Update, context: CallbackContext) -> int:
-    if str(update.effective_user.id) not in list(CHANNEL_IDS.values()): return ConversationHandler.END
-    await update.message.reply_text("Send the new CET or send /cancel to cancel.")
-    return ASK_CET
-
+    if str(update.effective_user.id) in list(SUPERUSERS.values()):
+        await update.message.reply_text("Send the new CET or send /cancel to cancel.")
+        return ASK_CET
+    elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
+        await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
+        return ConversationHandler.END
+    else: 
+        await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
+        return ConversationHandler.END
+    
 async def updateDutyGrp(update: Update, context: CallbackContext) -> int:
     cet = update.message.text
-    updateWhatsappGrp(cet)
+    updateWhatsappGrp(cet, receiver_id=str(update.effective_user.id))
     return ConversationHandler.END
 
 user_responses = {}
@@ -1534,6 +1539,7 @@ async def unknownCommand(update: Update, context: CallbackContext) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()):
         await update.message.reply_text("Unrecognised command.")
         await update.message.reply_text(ALL_COMMANDS)
+    else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 def telegram_manager() -> None:
 
