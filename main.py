@@ -23,8 +23,8 @@ import telegram
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackContext, ConversationHandler, MessageHandler, filters
 import asyncio
-# import nest_asyncio
-# nest_asyncio.apply() # patch asyncio
+import nest_asyncio
+nest_asyncio.apply() # patch asyncio
 import multiprocessing
 from concurrent.futures import ThreadPoolExecutor
 MAX_MESSAGE_LENGTH = 4096
@@ -1550,15 +1550,14 @@ async def unknownCommand(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text(ALL_COMMANDS)
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
-def blocking(callback):
+def blocking():
     time.sleep(10)
-    callback("Unblocked")
+    return "Unblocked"
 
-def test_blocking(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text("Blocking...")
-    def finished(message):
-        context.bot.send_message(chat_id=update.effective_chat.id, text=message)
-    future = executor.submit(blocking, finished)
+async def test_blocking(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text("Blocking...")
+    result = blocking()
+    await update.message.reply_text(result)
 
 def telegram_manager() -> None:
 
