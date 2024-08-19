@@ -1550,7 +1550,7 @@ async def unknownCommand(update: Update, context: CallbackContext) -> None:
 
 def blocking(receiver_id = None):
     time.sleep(10)
-    send_tele_msg("Unblocked", receiver_id=receiver_id)
+    # send_tele_msg("Unblocked", receiver_id=receiver_id)
 
 async def test_blocking(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("Blocking...")
