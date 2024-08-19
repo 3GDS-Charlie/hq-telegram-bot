@@ -1117,19 +1117,19 @@ async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         await update.message.reply_text("Checking for MC and Status Lapses...")
-        await checkMcStatus(str(update.effective_user.id))
+        checkMcStatus(str(update.effective_user.id))
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 async def checkConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         await update.message.reply_text("Checking for conduct tracking updates...")
-        await checkConductTracking(str(update.effective_user.id))
+        checkConductTracking(str(update.effective_user.id))
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(SUPERUSERS.values()):
         await update.message.reply_text("Updating conduct tracking...")
-        await updateConductTracking(str(update.effective_user.id))
+        updateConductTracking(str(update.effective_user.id))
     elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
         await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
     else: 
@@ -1138,9 +1138,9 @@ async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYP
 async def checkAllHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         await update.message.reply_text("Checking for MC and Status Lapses. This might take a while.")
-        await checkMcStatus()
+        checkMcStatus()
         await update.message.reply_text("Checking for conduct tracking updates...")
-        await checkConductTracking()
+        checkConductTracking()
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 ASK_CET = 1
@@ -1158,7 +1158,7 @@ async def updateCet(update: Update, context: CallbackContext) -> int:
     
 async def updateDutyGrp(update: Update, context: CallbackContext) -> int:
     cet = update.message.text
-    await updateWhatsappGrp(cet, receiver_id=str(update.effective_user.id))
+    updateWhatsappGrp(cet, receiver_id=str(update.effective_user.id))
     return ConversationHandler.END
 
 user_responses = {}
