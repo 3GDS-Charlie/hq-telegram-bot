@@ -134,7 +134,7 @@ def convertTimestampToDatetime(timestamp, tzinfo=ZoneInfo("Asia/Singapore")):
         return datetime.fromtimestamp(timestamp, tzinfo)
     return datetime.fromtimestamp(0, tzinfo) + timedelta(seconds=int(timestamp))
 
-def insertConductTracking(conductDate: str, conductName: str, conductColumn: int):
+async def insertConductTracking(conductDate: str, conductName: str, conductColumn: int):
     
     gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
     sheet = gc.open("Charlie Conduct Tracking")
@@ -154,7 +154,7 @@ def insertConductTracking(conductDate: str, conductName: str, conductColumn: int
     adjLetter = columnIndexToLetter(conductColumn+1)
 
     # clear the two columns to be written
-    conductTrackingSheet.batch_clear(["{}:{}".format(actualLetter, adjLetter)])
+    await conductTrackingSheet.batch_clear(["{}:{}".format(actualLetter, adjLetter)])
     requests = []
     requests.append({
         "repeatCell": {
@@ -187,20 +187,20 @@ def insertConductTracking(conductDate: str, conductName: str, conductColumn: int
     body = {'requests': requests}
     creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/spreadsheets'])
     service = build('sheets', 'v4', credentials=creds)
-    response = service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
+    response = await service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
 
     grayCellBackground = CellFormat(backgroundColor=Color(0.85, 0.85, 0.85, 1))  
     redCellBackground = CellFormat(backgroundColor=Color(0.92, 0.27, 0.2, 1))
     greenCellBackground = CellFormat(backgroundColor=Color(0.2, 0.66, 0.33, 1))
 
     cellFormat = CellFormat(textFormat=TextFormat(bold=True), horizontalAlignment="CENTER", wrapStrategy="WRAP")
-    format_cell_range(conductTrackingSheet, "{}2:{}4".format(actualLetter, actualLetter), cellFormat)
-    conductTrackingSheet.update_cells([gspread.cell.Cell(2, conductColumn, conductDate),
+    await format_cell_range(conductTrackingSheet, "{}2:{}4".format(actualLetter, actualLetter), cellFormat)
+    await conductTrackingSheet.update_cells([gspread.cell.Cell(2, conductColumn, conductDate),
                                        gspread.cell.Cell(4, conductColumn, conductName)])
-    conductTrackingSheet.update_cell(3, conductColumn, '=IF(REGEXMATCH({}4, "HAPT"), "HAPT", "NON_HAPT")'.format(actualLetter))
+    await conductTrackingSheet.update_cell(3, conductColumn, '=IF(REGEXMATCH({}4, "HAPT"), "HAPT", "NON_HAPT")'.format(actualLetter))
 
-    set_data_validation_for_cell_range(conductTrackingSheet, "{}{}:{}{}".format(actualLetter, startRow, actualLetter, endRow), DataValidationRule(BooleanCondition("BOOLEAN", []), showCustomUi=True)) 
-    conductTrackingSheet.update(range_name="{}{}:{}{}".format(actualLetter, startRow, actualLetter, endRow), values=[[False] for _ in range(endRow - startRow + 1)])
+    await set_data_validation_for_cell_range(conductTrackingSheet, "{}{}:{}{}".format(actualLetter, startRow, actualLetter, endRow), DataValidationRule(BooleanCondition("BOOLEAN", []), showCustomUi=True)) 
+    await conductTrackingSheet.update(range_name="{}{}:{}{}".format(actualLetter, startRow, actualLetter, endRow), values=[[False] for _ in range(endRow - startRow + 1)])
     
     requests = []
     requests.append({
@@ -416,10 +416,10 @@ def insertConductTracking(conductDate: str, conductName: str, conductColumn: int
         })
 
     body = {'requests': requests}
-    response = service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
-    format_cell_range(conductTrackingSheet, "{}{}:{}{}".format(adjLetter, startRow, adjLetter, endRow), grayCellBackground)
+    response = await service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
+    await format_cell_range(conductTrackingSheet, "{}{}:{}{}".format(adjLetter, startRow, adjLetter, endRow), grayCellBackground)
 
-def updateConductTracking():
+async def updateConductTracking(receiver_id = None):
     try: 
         global foundResponse, responseContent
         foundResponse = False
@@ -476,13 +476,13 @@ def updateConductTracking():
                             break
                         elif date == timetreeDate and conduct not in timetreeConduct.replace(" ", ""):
                             # print("Not on timetree: ", slave, date) # conduct that is not on timetree
-                            send_tele_msg("Removing {} on {}".format(slave, date))
+                            send_tele_msg("Removing {} on {}".format(slave, date), receiver_id=receiver_id)
                             conductTrackingSheet.delete_columns(index+1, index+2)
                             changesMade = True
                             break
                         elif dateObject > timetreeDateObject: # conduct not added to conduct tracking sheets
                             # print("Missing conducts: ", timetreeConduct, timetreeDate)
-                            send_tele_msg("Adding {} on {}".format(timetreeConduct, timetreeDate))
+                            send_tele_msg("Adding {} on {}".format(timetreeConduct, timetreeDate), receiver_id=receiver_id)
                             requests = [{
                                 'insertDimension': {
                                     'range': {
@@ -508,13 +508,13 @@ def updateConductTracking():
                             body = {'requests': requests}
                             creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/spreadsheets'])
                             service = build('sheets', 'v4', credentials=creds)
-                            response = service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
-                            insertConductTracking(timetreeDate, timetreeConduct+"(HAPT)", index+1)
+                            response = await service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
+                            await insertConductTracking(timetreeDate, timetreeConduct+"(HAPT)", index+1)
                             changesMade = True
                             break
                         elif date != timetreeDate or conduct not in timetreeConduct.replace(" ", ""):
                             # print("Not on timetree: ", slave, date) # conduct that is not on timetree
-                            send_tele_msg("Removing {} on {}".format(slave, date))
+                            send_tele_msg("Removing {} on {}".format(slave, date), receiver_id=receiver_id)
                             conductTrackingSheet.delete_columns(index+1, index+2)
                             changesMade = True
                             # do not break here 
@@ -551,18 +551,18 @@ def updateConductTracking():
                         body = {'requests': requests}
                         creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/spreadsheets'])
                         service = build('sheets', 'v4', credentials=creds)
-                        response = service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
-                        insertConductTracking(timetreeDate, timetreeConduct+"(HAPT)", currentIndex+3)
+                        response = await service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
+                        await insertConductTracking(timetreeDate, timetreeConduct+"(HAPT)", currentIndex+3)
                         changesMade = True
                         break
                     prevDateTimeObject = dateObject
                 if changesMade: break
-        send_tele_msg("Finished")
+        send_tele_msg("Finished", receiver_id=receiver_id)
     except Exception as e:
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
 
-def checkMcStatus(receiver_id = None):
+async def checkMcStatus(receiver_id = None):
 
     startTm = time.time()
     try:
@@ -570,7 +570,7 @@ def checkMcStatus(receiver_id = None):
         gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
         sheet = gc.open("3GDS CHARLIE PARADE STATE")
         cCoySheet = sheet.worksheet("C COY")
-        allValues = cCoySheet.get_all_values()
+        allValues = await cCoySheet.get_all_values()
         allValues = list(zip(*allValues))
         platoonMc = allValues[5] # column F
         sectionMc = allValues[6] # column G
@@ -610,7 +610,7 @@ def checkMcStatus(receiver_id = None):
         # read existing MC/Status entries from mc lapse sheet
         mcStatusLapseSheet = gc.open("MC/Status Lapse Tracking")
         mcLapse = mcStatusLapseSheet.worksheet("MC")
-        allValues = mcLapse.get_all_values()
+        allValues = await mcLapse.get_all_values()
         allValues = list(zip(*allValues))
         sheetMcList = list(filter(None, allValues[0])) # column A
         mcStartDates = list(filter(None, allValues[1])) # column B
@@ -630,7 +630,7 @@ def checkMcStatus(receiver_id = None):
         mcList = list(set(mcList)) # remove duplicate entries
 
         statusLapse = mcStatusLapseSheet.worksheet("Status")
-        allValues = statusLapse.get_all_values()
+        allValues = await statusLapse.get_all_values()
         allValues = list(zip(*allValues))
         sheetStatusList = list(filter(None, allValues[0])) # column A
         statusStartDates = list(filter(None, allValues[1])) # column B
@@ -651,7 +651,7 @@ def checkMcStatus(receiver_id = None):
 
         # Get already checked MC/Status entries
         mcStatusChecked = mcStatusLapseSheet.worksheet("Checked")
-        allValues = mcStatusChecked.get_all_values()
+        allValues = await mcStatusChecked.get_all_values()
         allValues = list(zip(*allValues))
         sheetMcStatusList = list(filter(None, allValues[0])) # column A
         mcStatusStartDates = list(filter(None, allValues[1])) # column B
@@ -750,7 +750,7 @@ def checkMcStatus(receiver_id = None):
                         imageArray = np.asarray(bytearray(file_data.read()), dtype="uint8")
                         img = cv2.imdecode(imageArray, cv2.IMREAD_COLOR)
 
-                    imageText = pytesseract.image_to_string(img)
+                    imageText = await pytesseract.image_to_string(img)
                     dates_format1 = re.findall(pattern1, imageText)
                     dates_format2 = re.findall(pattern2, imageText)
                     allDates = []
@@ -811,14 +811,14 @@ def checkMcStatus(receiver_id = None):
                 startTm = time.time() 
 
         # write lapsed mc/status list to mc/status lapse tracking sheet
-        mcLapse.batch_clear(['A2:G1000'])
-        statusLapse.batch_clear(['A2:G1000'])
+        await mcLapse.batch_clear(['A2:G1000'])
+        await statusLapse.batch_clear(['A2:G1000'])
         if len(lapseMcList) == 0: send_tele_msg("No MC lapses", receiver_id=receiver_id)
         else:
             lapseMcList = sorted(lapseMcList, key=lambda x: datetime.strptime(x[1], "%d %b %y"), reverse=True)
             tele_msg = "Lapsed MC List:"
             for index, mc in enumerate(lapseMcList, start = 2):
-                mcLapse.update_cells([gspread.cell.Cell(index, 1, mc[0]),
+                await mcLapse.update_cells([gspread.cell.Cell(index, 1, mc[0]),
                                       gspread.cell.Cell(index, 2, mc[1]),
                                       gspread.cell.Cell(index, 3, mc[2]),
                                       gspread.cell.Cell(index, 4, mc[3]),
@@ -834,7 +834,7 @@ def checkMcStatus(receiver_id = None):
             lapseStatusList = sorted(lapseStatusList, key=lambda x: datetime.strptime(x[1], "%d %b %y"), reverse=True)
             tele_msg = "Lapsed Status List:"
             for index, status in enumerate(lapseStatusList, start = 2):
-                statusLapse.update_cells([gspread.cell.Cell(index, 1, status[0]),
+                await statusLapse.update_cells([gspread.cell.Cell(index, 1, status[0]),
                                           gspread.cell.Cell(index, 2, status[1]),
                                           gspread.cell.Cell(index, 3, status[2]),
                                           gspread.cell.Cell(index, 4, status[3]),
@@ -849,9 +849,9 @@ def checkMcStatus(receiver_id = None):
             send_tele_msg(tele_msg, receiver_id=receiver_id)
     
         # Write checked mc/status files to avoid repeated checks
-        mcStatusChecked.batch_clear(['A2:H1000'])
+        await mcStatusChecked.batch_clear(['A2:H1000'])
         for index, status in enumerate(foundMcStatusFiles, start = 2):
-            mcStatusChecked.update_cells([gspread.cell.Cell(index, 1, status[0]), 
+            await mcStatusChecked.update_cells([gspread.cell.Cell(index, 1, status[0]), 
                                           gspread.cell.Cell(index, 2, status[1]),
                                           gspread.cell.Cell(index, 3, status[2]),
                                           gspread.cell.Cell(index, 4, status[3]),
@@ -864,13 +864,13 @@ def checkMcStatus(receiver_id = None):
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
 
-def checkConductTracking(receiver_id = None):
+async def checkConductTracking(receiver_id = None):
 
     try:
         gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
         sheet = gc.open("Charlie Conduct Tracking")
         conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
-        allDates = conductTrackingSheet.row_values(2)
+        allDates = await conductTrackingSheet.row_values(2)
         currentDate = "{}{}{}".format(("0" + str(datetime.now().day)) if datetime.now().day < 10 else (str(datetime.now().day)), (("0" + str(datetime.now().month)) if datetime.now().month < 10 else (str(datetime.now().month))), str(datetime.now().year).replace("20", ""))
         colIndexes = []
         foundIndexes = False
@@ -929,7 +929,7 @@ def checkConductTracking(receiver_id = None):
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
 
-def updateWhatsappGrp(cet, receiver_id = None):
+async def updateWhatsappGrp(cet, receiver_id = None):
     
     dutyGrpId = DUTY_GRP_ID
     greenAPI = API.GreenAPI(ID_INSTANCE, TOKEN_INSTANCE)
@@ -990,13 +990,13 @@ def updateWhatsappGrp(cet, receiver_id = None):
         for member in allMembers:
             memberId = member['id'].split('@c.us')[0][2:]
             if memberId not in list(PERM_DUTY_CMDS.values()) and memberId not in nextDutyCmds: 
-                if ENABLE_WHATSAPP_API: greenAPI.groups.removeGroupParticipant(dutyGrpId, member['id']) 
+                if ENABLE_WHATSAPP_API: await greenAPI.groups.removeGroupParticipant(dutyGrpId, member['id']) 
 
     # Adding new duty members
-    if CDS in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[CDS]))
-    if PDS7 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS7]))
-    if PDS8 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS8]))
-    if PDS9 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS9]))
+    if CDS in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: await greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[CDS]))
+    if PDS7 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: await greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS7]))
+    if PDS8 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: await greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS8]))
+    if PDS9 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: await greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS9]))
 
     # Sending new CET
     if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(dutyGrpId, cet)
@@ -1117,19 +1117,19 @@ async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         await update.message.reply_text("Checking for MC and Status Lapses...")
-        checkMcStatus(str(update.effective_user.id))
+        await checkMcStatus(str(update.effective_user.id))
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 async def checkConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         await update.message.reply_text("Checking for conduct tracking updates...")
-        checkConductTracking(str(update.effective_user.id))
+        await checkConductTracking(str(update.effective_user.id))
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(SUPERUSERS.values()):
         await update.message.reply_text("Updating conduct tracking...")
-        updateConductTracking(str(update.effective_user.id))
+        await updateConductTracking(str(update.effective_user.id))
     elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
         await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
     else: 
@@ -1138,9 +1138,9 @@ async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYP
 async def checkAllHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         await update.message.reply_text("Checking for MC and Status Lapses. This might take a while.")
-        checkMcStatus()
+        await checkMcStatus()
         await update.message.reply_text("Checking for conduct tracking updates...")
-        checkConductTracking()
+        await checkConductTracking()
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 ASK_CET = 1
@@ -1158,7 +1158,7 @@ async def updateCet(update: Update, context: CallbackContext) -> int:
     
 async def updateDutyGrp(update: Update, context: CallbackContext) -> int:
     cet = update.message.text
-    updateWhatsappGrp(cet, receiver_id=str(update.effective_user.id))
+    await updateWhatsappGrp(cet, receiver_id=str(update.effective_user.id))
     return ConversationHandler.END
 
 user_responses = {}
@@ -1590,7 +1590,7 @@ async def telegram_manager() -> None:
     application.add_handler(conv_dutygrp_handler)
     application.add_handler(conv__IR_handler)
     application.add_handler(MessageHandler(filters.COMMAND, unknownCommand))
-    await application.run_polling(allowed_updates=Update.ALL_TYPES, poll_interval=1)
+    await application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
 
