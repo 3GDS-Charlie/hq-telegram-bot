@@ -1550,15 +1550,15 @@ async def unknownCommand(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text(ALL_COMMANDS)
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
-def blocking():
+def blocking(callback):
     time.sleep(10)
-    return "Unblocked"
+    callback("Unblocked")
 
 async def test_blocking(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("Blocking...")
-    future = executor.submit(blocking)
-    result = future.result()
-    await update.message.reply_text(result)
+    def finished(message):
+        context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+    future = executor.submit(blocking, finished)
 
 def telegram_manager() -> None:
 
