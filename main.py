@@ -750,7 +750,7 @@ async def checkMcStatus(receiver_id = None):
                         imageArray = np.asarray(bytearray(file_data.read()), dtype="uint8")
                         img = cv2.imdecode(imageArray, cv2.IMREAD_COLOR)
 
-                    imageText = await pytesseract.image_to_string(img)
+                    imageText = pytesseract.image_to_string(img)
                     dates_format1 = re.findall(pattern1, imageText)
                     dates_format2 = re.findall(pattern2, imageText)
                     allDates = []
@@ -1547,6 +1547,11 @@ async def unknownCommand(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text(ALL_COMMANDS)
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
+async def test_blocking(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text("Blocking...")
+    await time.sleep(10)
+    await update.message.reply_text("Unblocked")
+
 async def telegram_manager() -> None:
 
     application = Application.builder().token(TELEGRAM_CHANNEL_BOT_TOKEN).build()
@@ -1557,6 +1562,7 @@ async def telegram_manager() -> None:
     application.add_handler(CommandHandler("checkconduct", checkConductHandler))
     application.add_handler(CommandHandler("checkall", checkAllHandler))
     application.add_handler(CommandHandler("updateconducttracking", updateConductHandler))
+    application.add_handler(CommandHandler("block", test_blocking))
 
     # Add a conversation handler for the new command
     conv_dutygrp_handler = ConversationHandler(
