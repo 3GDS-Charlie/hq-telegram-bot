@@ -39,6 +39,7 @@ CHANNEL_IDS = {
     "ZE_YEUNG": os.getenv("TELEGRAM_CHANNEL_ID_ZE_YEUNG"),
     "KEI_LOK": os.getenv("TELEGRAM_CHANNEL_ID_KEI_LOK"),
     "LIANG_DING": os.getenv("TELEGRAM_CHANNEL_ID_LIANG_DING"),
+    "TEST": os.getenv("TELEGRAM_CHANNEL_ID_TEST")
 }
 
 # WhatsApp related APIs
