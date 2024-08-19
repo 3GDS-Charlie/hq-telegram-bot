@@ -1554,11 +1554,11 @@ def blocking():
     time.sleep(10)
     return "Unblocked"
 
-def test_blocking(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text("Blocking...")
+async def test_blocking(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text("Blocking...")
     future = executor.submit(blocking)
     result = future.result()
-    update.message.reply_text(result)
+    await update.message.reply_text(result)
 
 def telegram_manager() -> None:
 
