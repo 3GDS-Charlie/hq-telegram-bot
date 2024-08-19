@@ -1560,7 +1560,7 @@ def test_blocking(update: Update, context: CallbackContext) -> None:
     result = future.result()
     update.message.reply_text(result)
 
-async def telegram_manager() -> None:
+def telegram_manager() -> None:
 
     application = Application.builder().token(TELEGRAM_CHANNEL_BOT_TOKEN).build()
 
@@ -1604,7 +1604,7 @@ async def telegram_manager() -> None:
     application.add_handler(conv_dutygrp_handler)
     application.add_handler(conv__IR_handler)
     application.add_handler(MessageHandler(filters.COMMAND, unknownCommand))
-    await application.run_polling(allowed_updates=Update.ALL_TYPES)
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
 
@@ -1614,4 +1614,4 @@ if __name__ == '__main__':
     cetQueue = multiprocessing.Queue()
     mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue,))
     mainCheckMcProcess.start()
-    asyncio.run(telegram_manager())
+    telegram_manager()
