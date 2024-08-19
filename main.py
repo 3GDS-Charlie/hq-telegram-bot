@@ -26,6 +26,7 @@ import asyncio
 import nest_asyncio
 nest_asyncio.apply() # patch asyncio
 import multiprocessing
+import threading
 MAX_MESSAGE_LENGTH = 4096
 
 # Pytesseract OCR + Super Resolution Libraries
@@ -1552,9 +1553,11 @@ async def blocking():
     return "Unblocked"
 
 async def test_blocking(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text("Blocking...")
-    result = await blocking()
-    await update.message.reply_text(result)
+        await update.message.reply_text("Blocking...")
+        t1 = threading.Thread(target=blocking)
+        t1.start()
+        t1.join()
+        await update.message.reply_text("Unblocked")
 
 async def telegram_manager() -> None:
 
