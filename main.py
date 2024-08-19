@@ -67,7 +67,7 @@ def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None
         parseMode = 'MarkdownV2'
         replyMarkup for keyboards
     """
-    if not isinstance(receiver_id, str): receiver_id = str(receiver_id)
+    if receiver_id is not None and not isinstance(receiver_id, str): receiver_id = str(receiver_id)
     
     if receiver_id is None:
         for _, value in CHANNEL_IDS.items():
