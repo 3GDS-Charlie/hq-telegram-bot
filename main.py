@@ -26,7 +26,7 @@ import asyncio
 import nest_asyncio
 nest_asyncio.apply() # patch asyncio
 import multiprocessing
-from concurrent.futures import ThreadPoolExecutor
+import threading
 MAX_MESSAGE_LENGTH = 4096
 
 # Pytesseract OCR + Super Resolution Libraries
@@ -1529,11 +1529,8 @@ ASIS Report - No\n\
     return ConversationHandler.END
 
 async def cancel_ir(update: Update, context: CallbackContext) -> int:
-    if str(update.effective_user.id) in list(SUPERUSERS.values()):
+    if str(update.effective_user.id) in list(CHANNEL_IDS.values()):
         await update.message.reply_text("IR generation cancelled.")
-        return ConversationHandler.END
-    elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
-        await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
         return ConversationHandler.END
     else: 
         await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
@@ -1542,6 +1539,9 @@ async def cancel_ir(update: Update, context: CallbackContext) -> int:
 async def cancel_dutygrp(update: Update, context: CallbackContext) -> int:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()):
         await update.message.reply_text('Updating cancelled')
+        return ConversationHandler.END
+    else: 
+        await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
         return ConversationHandler.END
 
 async def unknownCommand(update: Update, context: CallbackContext) -> None:
@@ -1552,12 +1552,12 @@ async def unknownCommand(update: Update, context: CallbackContext) -> None:
 
 def blocking():
     time.sleep(10)
-    return "Unblocked"
+    send_tele_msg("Unblocked")
 
 async def test_blocking(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("Blocking...")
-    result = blocking()
-    await update.message.reply_text(result)
+    t1 = threading.Thread(target=blocking)
+    t1.start()
 
 def telegram_manager() -> None:
 
