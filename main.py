@@ -1552,10 +1552,16 @@ def blocking(receiver_id = None):
     time.sleep(10)
     send_tele_msg("Unblocked", receiver_id=receiver_id)
 
+blockingUserRequests = dict()
 async def test_blocking(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text("Blocking...")
-    t1 = threading.Thread(target=blocking, args=(str(update.effective_user.id),))
-    t1.start()
+    for user, thread in blockingUserRequests.items():
+        if not thread.is_alive(): del blockingUserRequests[user]
+    if str(update.effective_user.id) not in list(blockingUserRequests.keys()):
+        await update.message.reply_text("Blocking...")
+        t1 = threading.Thread(target=blocking, args=(str(update.effective_user.id),))
+        t1.start()
+        blockingUserRequests[str(update.effective_user.id)] = t1
+    else: await update.message.reply_text("Please wait for the current request to finish")
 
 def telegram_manager() -> None:
 
