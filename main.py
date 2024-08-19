@@ -23,8 +23,8 @@ import telegram
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackContext, ConversationHandler, MessageHandler, filters
 import asyncio
-import nest_asyncio
-nest_asyncio.apply() # patch asyncio
+# import nest_asyncio
+# nest_asyncio.apply() # patch asyncio
 import multiprocessing
 from concurrent.futures import ThreadPoolExecutor
 MAX_MESSAGE_LENGTH = 4096
@@ -1554,10 +1554,10 @@ def blocking(callback):
     time.sleep(10)
     callback("Unblocked")
 
-async def test_blocking(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text("Blocking...")
-    async def finished(message):
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+def test_blocking(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text("Blocking...")
+    def finished(message):
+        context.bot.send_message(chat_id=update.effective_chat.id, text=message)
     future = executor.submit(blocking, finished)
 
 def telegram_manager() -> None:
