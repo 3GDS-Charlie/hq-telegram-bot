@@ -1115,10 +1115,17 @@ async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text(ALL_COMMANDS)
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
+checkMcStatusUserRequests = dict()
 async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
-        await update.message.reply_text("Checking for MC and Status Lapses...")
-        checkMcStatus(str(update.effective_user.id))
+        try: checkMcStatusUserRequests[str(update.effective_user.id)]
+        except KeyError: checkMcStatusUserRequests[str(update.effective_user.id)] = None
+        if checkMcStatusUserRequests[str(update.effective_user.id)] is None or not checkMcStatusUserRequests[str(update.effective_user.id)].is_alive():
+            await update.message.reply_text("Checking for MC and Status Lapses...")
+            t1 = threading.Thread(target=checkMcStatus, args=(str(update.effective_user.id),))
+            t1.start()
+            checkMcStatusUserRequests[str(update.effective_user.id)] = t1
+        else: await update.message.reply_text("Please wait for the current request to finish")
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 async def checkConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
