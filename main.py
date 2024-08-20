@@ -526,7 +526,7 @@ def updateConductTracking(receiver_id = None):
                     if currentIndex is None: currentIndex = len(allDates)-1 # never make changes during first pass
                     if not correctConduct and currentIndex is not None and currentIndex+1 == len(allDates): # never make changes during subsequent passes
                         # print("Missing conducts: ", timetreeConduct, timetreeDate)
-                        send_tele_msg("Adding {} on {}".format(timetreeConduct, timetreeDate))
+                        send_tele_msg("Adding {} on {}".format(timetreeConduct, timetreeDate), receiver_id=receiver_id)
                         requests = [{
                             'insertDimension': {
                                 'range': {
@@ -954,7 +954,7 @@ def updateWhatsappGrp(cet, receiver_id = None):
             elif 'PDS9' in segment: PDS9 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
             if fpTime is not None: 
                 noFPTimeFound = False
-                cetQueue.put((newDate, fpTime))
+                cetQueue.put((newDate, fpTime, receiver_id))
         if noFPTimeFound: 
             cetQueue.put(None)
             send_tele_msg("No FP time found. CDS reminder not scheduled.", receiver_id=receiver_id)
@@ -1073,7 +1073,7 @@ def main(cetQ):
 
         # Auto updating of MC Lapses and MAs everyday at 0900
         if not checkedDailyMcMa and datetime.now().hour == 9 and datetime.now().minute == 0:
-            send_tele_msg("Checking for MC Lapses...")
+            send_tele_msg("Checking for MC and Status Lapses. This might take a while.")
             checkMcStatus()
             send_tele_msg("Checking for MAs...")
             autoCheckMA()
@@ -1088,9 +1088,9 @@ def main(cetQ):
                 # check whether date and time is correct
                 if cetQ.empty(): 
                     if fpDateTime is None: pass
-                    elif datetime.strptime(fpDateTime[0]+fpDateTime[1], "%d%m%y%H%M") > datetime.now(): send_tele_msg("CDS reminder for report sick parade state scheduled at {} {}".format(fpDateTime[0], fpDateTime[1]))
+                    elif datetime.strptime(fpDateTime[0]+fpDateTime[1], "%d%m%y%H%M") > datetime.now(): send_tele_msg("CDS reminder for report sick parade state scheduled at {} {}".format(fpDateTime[0], fpDateTime[1]), receiver_id=fpDateTime[2])
                     else: 
-                        send_tele_msg("Invalid CET date to schedule CDS reminder.")
+                        send_tele_msg("Invalid CET date to schedule CDS reminder.", receiver_id=fpDateTime[2])
                         fpDateTime = None
         except Exception as e:
             print("Encountered exception:\n{}".format(traceback.format_exc()))
@@ -1099,7 +1099,7 @@ def main(cetQ):
         if fpDateTime is not None:
             # send reminder during weekdays when it hits the FP date and time of sent CET
             if datetime.now().isoweekday() in weekDay and datetime.now().day == int(fpDateTime[0][:2]) and datetime.now().hour == int(fpDateTime[1][:2]) and datetime.now().minute == int(fpDateTime[1][-2:]) and not sentCdsReminder:
-                send_tele_msg("Sending automated CDS reminder")
+                send_tele_msg("Sending automated CDS reminder", receiver_id=fpDateTime[2])
                 if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE\nhttps://docs.google.com/spreadsheets/d/1y6q2rFUE_dbb-l_Ps3R3mQVSPJT_DB_kDys1uyFeXRg/edit?gid=802597665#gid=802597665")
                 sentCdsReminder = True
 
