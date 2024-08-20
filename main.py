@@ -61,6 +61,8 @@ officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'L
 
 ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
 
+masterUserRequests = dict()
+
 def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None):
 
     """
@@ -1112,7 +1114,12 @@ ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status Lapse
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
-        await update.message.reply_text(ALL_COMMANDS)
+        try: masterUserRequests[str(update.effective_user.id)]
+        except KeyError: masterUserRequests[str(update.effective_user.id)] = None
+        if masterUserRequests[str(update.effective_user.id)] is not None and time.time() - masterUserRequests[str(update.effective_user.id)] > 1:
+            await update.message.reply_text(ALL_COMMANDS)
+            masterUserRequests[str(update.effective_user.id)] = time.time()
+        else: await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 mcStatusUserRequests = dict()
