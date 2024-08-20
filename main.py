@@ -61,6 +61,8 @@ officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'L
 
 ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
 
+userRequests = dict()
+
 def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None):
 
     """
@@ -1115,16 +1117,15 @@ async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text(ALL_COMMANDS)
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
-checkMcStatusUserRequests = dict()
 async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
-        try: checkMcStatusUserRequests[str(update.effective_user.id)]
-        except KeyError: checkMcStatusUserRequests[str(update.effective_user.id)] = None
-        if checkMcStatusUserRequests[str(update.effective_user.id)] is None or not checkMcStatusUserRequests[str(update.effective_user.id)].is_alive():
+        try: userRequests[str(update.effective_user.id)]
+        except KeyError: userRequests[str(update.effective_user.id)] = None
+        if userRequests[str(update.effective_user.id)] is None or not userRequests[str(update.effective_user.id)].is_alive():
             await update.message.reply_text("Checking for MC and Status Lapses...")
             t1 = threading.Thread(target=checkMcStatus, args=(str(update.effective_user.id),))
             t1.start()
-            checkMcStatusUserRequests[str(update.effective_user.id)] = t1
+            userRequests[str(update.effective_user.id)] = t1
         else: await update.message.reply_text("Please wait for the current request to finish")
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
@@ -1555,19 +1556,18 @@ async def unknownCommand(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text(ALL_COMMANDS)
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
-blockingUserRequests = dict()
 def blocking(receiver_id = None):
     time.sleep(10)
     send_tele_msg("Unblocked", receiver_id=receiver_id)
 
 async def test_blocking(update: Update, context: CallbackContext) -> None:
-    try: blockingUserRequests[str(update.effective_user.id)]
-    except KeyError: blockingUserRequests[str(update.effective_user.id)] = None
-    if blockingUserRequests[str(update.effective_user.id)] is None or not blockingUserRequests[str(update.effective_user.id)].is_alive():
+    try: userRequests[str(update.effective_user.id)]
+    except KeyError: userRequests[str(update.effective_user.id)] = None
+    if userRequests[str(update.effective_user.id)] is None or not userRequests[str(update.effective_user.id)].is_alive():
         await update.message.reply_text("Blocking...")
         t1 = threading.Thread(target=blocking, args=(str(update.effective_user.id),))
         t1.start()
-        blockingUserRequests[str(update.effective_user.id)] = t1
+        userRequests[str(update.effective_user.id)] = t1
     else: await update.message.reply_text("Please wait for the current request to finish")
 
 def telegram_manager() -> None:
