@@ -59,7 +59,7 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
+ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
 
 def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None):
 
@@ -1159,10 +1159,15 @@ async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 ASK_CET = 1
 
+updateDutyGrpUserRequests = dict()
 async def updateCet(update: Update, context: CallbackContext) -> int:
     if str(update.effective_user.id) in list(SUPERUSERS.values()):
-        await update.message.reply_text("Send the new CET or send /cancel to cancel.")
-        return ASK_CET
+        try: updateDutyGrpUserRequests[str(update.effective_user.id)]
+        except KeyError: updateDutyGrpUserRequests[str(update.effective_user.id)] = None
+        if updateDutyGrpUserRequests[str(update.effective_user.id)] is None or not updateDutyGrpUserRequests[str(update.effective_user.id)].is_alive():
+            await update.message.reply_text("Send the new CET or send /cancel to cancel.")
+            return ASK_CET
+        else: await update.message.reply_text("Please wait for the current request to finish")
     elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
         await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
         return ConversationHandler.END
@@ -1172,7 +1177,9 @@ async def updateCet(update: Update, context: CallbackContext) -> int:
     
 async def updateDutyGrp(update: Update, context: CallbackContext) -> int:
     cet = update.message.text
-    updateWhatsappGrp(cet, receiver_id=str(update.effective_user.id))
+    t1 = threading.Thread(target=updateWhatsappGrp, args=(cet, str(update.effective_user.id),))
+    t1.start()
+    updateDutyGrpUserRequests[str(update.effective_user.id)] = t1
     return ConversationHandler.END
 
 user_responses = {}
