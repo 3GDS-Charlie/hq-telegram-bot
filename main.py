@@ -62,6 +62,7 @@ officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'L
 ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
 
 masterUserRequests = dict()
+rateLimit = 1 # number of seconds between commands per user
 
 def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None):
 
@@ -1116,7 +1117,7 @@ async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         try: masterUserRequests[str(update.effective_user.id)]
         except KeyError: masterUserRequests[str(update.effective_user.id)] = None
-        if masterUserRequests[str(update.effective_user.id)] is not None and time.time() - masterUserRequests[str(update.effective_user.id)] > 1:
+        if masterUserRequests[str(update.effective_user.id)] is not None and time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
             await update.message.reply_text(ALL_COMMANDS)
             masterUserRequests[str(update.effective_user.id)] = time.time()
         else: await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
