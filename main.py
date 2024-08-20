@@ -1548,15 +1548,15 @@ async def unknownCommand(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text(ALL_COMMANDS)
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
+blockingUserRequests = dict()
 def blocking(receiver_id = None):
     time.sleep(10)
     send_tele_msg("Unblocked", receiver_id=receiver_id)
 
-blockingUserRequests = dict()
 async def test_blocking(update: Update, context: CallbackContext) -> None:
-    for user, thread in blockingUserRequests.items():
-        if not thread.is_alive(): del blockingUserRequests[user]
-    if str(update.effective_user.id) not in list(blockingUserRequests.keys()):
+    try: blockingUserRequests[str(update.effective_user.id)]
+    except KeyError: blockingUserRequests[str(update.effective_user.id)] = None
+    if blockingUserRequests[str(update.effective_user.id)] is None or not blockingUserRequests[str(update.effective_user.id)].is_alive():
         await update.message.reply_text("Blocking...")
         t1 = threading.Thread(target=blocking, args=(str(update.effective_user.id),))
         t1.start()
