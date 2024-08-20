@@ -62,7 +62,7 @@ officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'L
 ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
 
 masterUserRequests = dict()
-rateLimit = 1 # number of seconds between commands per user
+rateLimit = 5 # number of seconds between commands per user
 
 def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None):
 
