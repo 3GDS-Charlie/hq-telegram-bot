@@ -1115,6 +1115,8 @@ ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status Lapse
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
+        try: masterUserRequests[str(update.effective_user.id)]
+        except KeyError: masterUserRequests[str(update.effective_user.id)] = time.time()
         if time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
             masterUserRequests[str(update.effective_user.id)] = time.time()
             await update.message.reply_text(ALL_COMMANDS)
@@ -1126,6 +1128,8 @@ async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYP
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         try: mcStatusUserRequests[str(update.effective_user.id)]
         except KeyError: mcStatusUserRequests[str(update.effective_user.id)] = None
+        try: masterUserRequests[str(update.effective_user.id)]
+        except KeyError: masterUserRequests[str(update.effective_user.id)] = time.time()
         if time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:   
             if mcStatusUserRequests[str(update.effective_user.id)] is None or not mcStatusUserRequests[str(update.effective_user.id)].is_alive():
                 masterUserRequests[str(update.effective_user.id)] = time.time()
@@ -1142,6 +1146,8 @@ async def checkConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         try: checkConductUserRequests[str(update.effective_user.id)]
         except KeyError: checkConductUserRequests[str(update.effective_user.id)] = None
+        try: masterUserRequests[str(update.effective_user.id)]
+        except KeyError: masterUserRequests[str(update.effective_user.id)] = time.time()
         if time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
             if checkConductUserRequests[str(update.effective_user.id)] is None or not checkConductUserRequests[str(update.effective_user.id)].is_alive():
                 masterUserRequests[str(update.effective_user.id)] = time.time()
@@ -1158,6 +1164,8 @@ async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYP
     if str(update.effective_user.id) in list(SUPERUSERS.values()):
         try: updateConductUserRequests[str(update.effective_user.id)]
         except KeyError: updateConductUserRequests[str(update.effective_user.id)] = None
+        try: masterUserRequests[str(update.effective_user.id)]
+        except KeyError: masterUserRequests[str(update.effective_user.id)] = time.time()
         if time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
             if updateConductUserRequests[str(update.effective_user.id)] is None or not updateConductUserRequests[str(update.effective_user.id)].is_alive():
                 masterUserRequests[str(update.effective_user.id)] = time.time()
@@ -1179,6 +1187,8 @@ async def updateCet(update: Update, context: CallbackContext) -> int:
     if str(update.effective_user.id) in list(SUPERUSERS.values()):
         try: updateDutyGrpUserRequests[str(update.effective_user.id)]
         except KeyError: updateDutyGrpUserRequests[str(update.effective_user.id)] = None
+        try: masterUserRequests[str(update.effective_user.id)]
+        except KeyError: masterUserRequests[str(update.effective_user.id)] = time.time()
         if time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
             if updateDutyGrpUserRequests[str(update.effective_user.id)] is None or not updateDutyGrpUserRequests[str(update.effective_user.id)].is_alive():
                 masterUserRequests[str(update.effective_user.id)] = time.time()
@@ -1218,6 +1228,8 @@ async def start(update: Update, context: CallbackContext) -> int:
     if str(update.effective_user.id) not in list(CHANNEL_IDS.values()): 
         await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for any issues.")
         return ConversationHandler.END
+    try: masterUserRequests[str(update.effective_user.id)]
+    except KeyError: masterUserRequests[str(update.effective_user.id)] = time.time()
     if time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
         masterUserRequests[str(update.effective_user.id)] = time.time()
         global user_responses, usingPrevIR, prevIRDetails, findingName, findingDateTime, findingLocation, checkingName, nameTobeChecked
