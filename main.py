@@ -1470,12 +1470,14 @@ async def location(update: Update, context: CallbackContext) -> int:
         else:
             await update.message.reply_text("Please write the description following the below text")
             await update.message.reply_text("On {} at about {}hrs, {} {}...".format(user_responses['date_time'][:6], user_responses['date_time'][-4:], user_responses['name'][4], user_responses['name'][5]))
+            await update.message.reply_text("Refer to the templates below when writing your description:\n\n1) ... requested (RANK+FULL NAME) for permission to report sick at (LOCATION).\n2) ... left (LOCATION) to go to (LOCATION) for his (TYPE) medical appointment")
             return DESCRIPTION
 
     else:
         user_responses['location'] = update.message.text
         await update.message.reply_text("Please write the description following the below text")
         await update.message.reply_text("On {} at about {}hrs, {} {}...".format(user_responses['date_time'][:6], user_responses['date_time'][-4:], user_responses['name'][4], user_responses['name'][5]))
+        await update.message.reply_text("Refer to the templates below when writing your description:\n\n1) ... requested (RANK+FULL NAME) for permission to report sick at (LOCATION).\n2) ... left (LOCATION) to go to (LOCATION) for his (TYPE) medical appointment")
         return DESCRIPTION
 
 async def description(update: Update, context: CallbackContext) -> int:
