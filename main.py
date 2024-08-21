@@ -62,7 +62,7 @@ officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'L
 ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
 
 masterUserRequests = dict()
-rateLimit = 5 # number of seconds between commands per user
+rateLimit = 1 # number of seconds between commands per user
 
 def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None):
 
@@ -1115,11 +1115,9 @@ ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status Lapse
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
-        try: masterUserRequests[str(update.effective_user.id)]
-        except KeyError: masterUserRequests[str(update.effective_user.id)] = time.time()
         if time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
-            await update.message.reply_text(ALL_COMMANDS)
             masterUserRequests[str(update.effective_user.id)] = time.time()
+            await update.message.reply_text(ALL_COMMANDS)
         else: await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
@@ -1128,12 +1126,15 @@ async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYP
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         try: mcStatusUserRequests[str(update.effective_user.id)]
         except KeyError: mcStatusUserRequests[str(update.effective_user.id)] = None
-        if mcStatusUserRequests[str(update.effective_user.id)] is None or not mcStatusUserRequests[str(update.effective_user.id)].is_alive():
-            await update.message.reply_text("Checking for MC and Status Lapses. This might take a while.")
-            t1 = threading.Thread(target=checkMcStatus, args=(str(update.effective_user.id),))
-            t1.start()
-            mcStatusUserRequests[str(update.effective_user.id)] = t1
-        else: await update.message.reply_text("Please wait for the current request to finish")
+        if time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:   
+            if mcStatusUserRequests[str(update.effective_user.id)] is None or not mcStatusUserRequests[str(update.effective_user.id)].is_alive():
+                masterUserRequests[str(update.effective_user.id)] = time.time()
+                await update.message.reply_text("Checking for MC and Status Lapses. This might take a while.")
+                t1 = threading.Thread(target=checkMcStatus, args=(str(update.effective_user.id),))
+                t1.start()
+                mcStatusUserRequests[str(update.effective_user.id)] = t1
+            else: await update.message.reply_text("Please wait for the current request to finish")
+        else: await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 checkConductUserRequests = dict()
@@ -1141,12 +1142,15 @@ async def checkConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
         try: checkConductUserRequests[str(update.effective_user.id)]
         except KeyError: checkConductUserRequests[str(update.effective_user.id)] = None
-        if checkConductUserRequests[str(update.effective_user.id)] is None or not checkConductUserRequests[str(update.effective_user.id)].is_alive():
-            await update.message.reply_text("Checking for conduct tracking updates...")
-            t1 = threading.Thread(target=checkConductTracking, args=(str(update.effective_user.id),))
-            t1.start()
-            checkConductUserRequests[str(update.effective_user.id)] = t1
-        else: await update.message.reply_text("Please wait for the current request to finish")
+        if time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
+            if checkConductUserRequests[str(update.effective_user.id)] is None or not checkConductUserRequests[str(update.effective_user.id)].is_alive():
+                masterUserRequests[str(update.effective_user.id)] = time.time()
+                await update.message.reply_text("Checking for conduct tracking updates...")
+                t1 = threading.Thread(target=checkConductTracking, args=(str(update.effective_user.id),))
+                t1.start()
+                checkConductUserRequests[str(update.effective_user.id)] = t1
+            else: await update.message.reply_text("Please wait for the current request to finish")
+        else: await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 updateConductUserRequests = dict()
@@ -1154,12 +1158,15 @@ async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYP
     if str(update.effective_user.id) in list(SUPERUSERS.values()):
         try: updateConductUserRequests[str(update.effective_user.id)]
         except KeyError: updateConductUserRequests[str(update.effective_user.id)] = None
-        if updateConductUserRequests[str(update.effective_user.id)] is None or not updateConductUserRequests[str(update.effective_user.id)].is_alive():
-            await update.message.reply_text("Updating conduct tracking...")
-            t1 = threading.Thread(target=updateConductTracking, args=(str(update.effective_user.id),))
-            t1.start()
-            updateConductUserRequests[str(update.effective_user.id)] = t1
-        else: await update.message.reply_text("Please wait for the current request to finish")
+        if time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
+            if updateConductUserRequests[str(update.effective_user.id)] is None or not updateConductUserRequests[str(update.effective_user.id)].is_alive():
+                masterUserRequests[str(update.effective_user.id)] = time.time()
+                await update.message.reply_text("Updating conduct tracking...")
+                t1 = threading.Thread(target=updateConductTracking, args=(str(update.effective_user.id),))
+                t1.start()
+                updateConductUserRequests[str(update.effective_user.id)] = t1
+            else: await update.message.reply_text("Please wait for the current request to finish")
+        else: await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
     elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
         await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
     else: 
@@ -1172,10 +1179,17 @@ async def updateCet(update: Update, context: CallbackContext) -> int:
     if str(update.effective_user.id) in list(SUPERUSERS.values()):
         try: updateDutyGrpUserRequests[str(update.effective_user.id)]
         except KeyError: updateDutyGrpUserRequests[str(update.effective_user.id)] = None
-        if updateDutyGrpUserRequests[str(update.effective_user.id)] is None or not updateDutyGrpUserRequests[str(update.effective_user.id)].is_alive():
-            await update.message.reply_text("Send the new CET or send /cancel to cancel.")
-            return ASK_CET
-        else: await update.message.reply_text("Please wait for the current request to finish")
+        if time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
+            if updateDutyGrpUserRequests[str(update.effective_user.id)] is None or not updateDutyGrpUserRequests[str(update.effective_user.id)].is_alive():
+                masterUserRequests[str(update.effective_user.id)] = time.time()
+                await update.message.reply_text("Send the new CET or send /cancel to cancel.")
+                return ASK_CET
+            else: 
+                await update.message.reply_text("Please wait for the current request to finish")
+                return ConversationHandler.END
+        else: 
+            await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
+            return ConversationHandler.END
     elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
         await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
         return ConversationHandler.END
@@ -1201,23 +1215,30 @@ nameTobeChecked = None
 NEW, CHECK_PREV_IR, PREV_IR, TRAINING, NAME, CHECK_PES, DATE_TIME, LOCATION, DESCRIPTION, STATUS, FOLLOW_UP, NOK, REPORTED_BY = range(13)
 
 async def start(update: Update, context: CallbackContext) -> int:
-    if str(update.effective_user.id) not in list(CHANNEL_IDS.values()): return ConversationHandler.END
-    global user_responses, usingPrevIR, prevIRDetails, findingName, findingDateTime, findingLocation, checkingName, nameTobeChecked
-    user_responses = {}
-    usingPrevIR = False
-    prevIRDetails = None
-    findingName = False
-    findingDateTime = False
-    findingLocation = False
-    checkingName = False
-    nameTobeChecked = None
-    await update.message.reply_text("Send /cancel to cancel the IR generation any point in time.")
-    reply_keyboard = [['New', 'Update', 'Final']]
-    await update.message.reply_text(
-        "Is it a new/update/final report ?",
-        reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
-    )
-    return CHECK_PREV_IR
+    if str(update.effective_user.id) not in list(CHANNEL_IDS.values()): 
+        await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for any issues.")
+        return ConversationHandler.END
+    if time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
+        masterUserRequests[str(update.effective_user.id)] = time.time()
+        global user_responses, usingPrevIR, prevIRDetails, findingName, findingDateTime, findingLocation, checkingName, nameTobeChecked
+        user_responses = {}
+        usingPrevIR = False
+        prevIRDetails = None
+        findingName = False
+        findingDateTime = False
+        findingLocation = False
+        checkingName = False
+        nameTobeChecked = None
+        await update.message.reply_text("Send /cancel to cancel the IR generation any point in time.")
+        reply_keyboard = [['New', 'Update', 'Final']]
+        await update.message.reply_text(
+            "Is it a new/update/final report ?",
+            reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
+        )
+        return CHECK_PREV_IR
+    else: 
+        await update.message.reply_text("Please wait for the current request to finish")
+        return ConversationHandler.END
 
 async def checkPrevIR(update: Update, context: CallbackContext) -> int:
     user_responses['new'] = update.message.text
