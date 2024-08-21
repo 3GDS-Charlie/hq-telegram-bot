@@ -1249,7 +1249,7 @@ async def start(update: Update, context: CallbackContext) -> int:
         )
         return CHECK_PREV_IR
     else: 
-        await update.message.reply_text("Please wait for the current request to finish")
+        await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
         return ConversationHandler.END
 
 async def checkPrevIR(update: Update, context: CallbackContext) -> int:
