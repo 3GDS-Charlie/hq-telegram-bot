@@ -1406,14 +1406,14 @@ async def location(update: Update, context: CallbackContext) -> int:
             location = None
         try: 
             description = context.user_data['description']
-            if description is None: raise KeyError
+            if description is None or context.user_data['shiftingStatus']: raise KeyError
             foundDescription = True
         except KeyError: 
             foundDescription = False
             description = None
         try: 
             status = context.user_data['status']
-            if status is None: raise KeyError
+            if status is None or context.user_data['shiftingStatus']: raise KeyError
             foundStatus = True
         except KeyError: 
             foundStatus = False
