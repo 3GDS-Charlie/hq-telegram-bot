@@ -63,14 +63,11 @@ ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
 
 masterUserRequests = dict()
 rateLimit = 1 # number of seconds between commands per user
-
-def escapeChar(text: str):
-    return text.replace("_", "\\_").replace("*", "\\*").replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)").replace("~", "\\~").replace("`", "\\`").replace(">", "\\>").replace("#", "\\#").replace("+", "\\+").replace("-", "\\-").replace("=", "\\=").replace("|", "\\|").replace("{", "\\{").replace("}", "\\}").replace(".", "\\.").replace("!", "\\!")
-    
+ 
 def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None):
 
     """
-        receiver_id -> Specify a user id to send to instead of all whitelisted 
+        receiver_id -> SUPERUSERS/ALL/individual ID. None -> Send to everyone
         parseMode = 'MarkdownV2'
         replyMarkup for keyboards
     """
@@ -79,7 +76,14 @@ def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None
     if receiver_id is None:
         for _, value in CHANNEL_IDS.items():
             asyncio.run(send_telegram_bot_msg(msg, value, parseMode, replyMarkup))
-    elif receiver_id in list(CHANNEL_IDS.values()): asyncio.run(send_telegram_bot_msg(msg, receiver_id, parseMode, replyMarkup))
+    else:
+        if receiver_id == "SUPERUSERS":  
+            for _, value in SUPERUSERS.items():
+                asyncio.run(send_telegram_bot_msg(msg, value, parseMode, replyMarkup))
+        elif receiver_id == "ALL": 
+            for _, value in CHANNEL_IDS.items():
+                asyncio.run(send_telegram_bot_msg(msg, value, parseMode, replyMarkup))
+        elif receiver_id in list(CHANNEL_IDS.values()): asyncio.run(send_telegram_bot_msg(msg, receiver_id, parseMode, replyMarkup))
 
 async def send_telegram_bot_msg(msg, channel_id, parseMode, replyMarkup):
     try: 
@@ -483,13 +487,13 @@ def updateConductTracking(receiver_id = None):
                             break
                         elif date == timetreeDate and conduct not in timetreeConduct.replace(" ", ""):
                             # print("Not on timetree: ", slave, date) # conduct that is not on timetree
-                            send_tele_msg("Removing {} on {}".format(slave, date), receiver_id=receiver_id)
+                            send_tele_msg("Removing {} on {}".format(slave, date), receiver_id="SUPERUSERS")
                             conductTrackingSheet.delete_columns(index+1, index+2)
                             changesMade = True
                             break
                         elif dateObject > timetreeDateObject: # conduct not added to conduct tracking sheets
                             # print("Missing conducts: ", timetreeConduct, timetreeDate)
-                            send_tele_msg("Adding {} on {}".format(timetreeConduct, timetreeDate), receiver_id=receiver_id)
+                            send_tele_msg("Adding {} on {}".format(timetreeConduct, timetreeDate), receiver_id="SUPERUSERS")
                             requests = [{
                                 'insertDimension': {
                                     'range': {
@@ -521,7 +525,7 @@ def updateConductTracking(receiver_id = None):
                             break
                         elif date != timetreeDate or conduct not in timetreeConduct.replace(" ", ""):
                             # print("Not on timetree: ", slave, date) # conduct that is not on timetree
-                            send_tele_msg("Removing {} on {}".format(slave, date), receiver_id=receiver_id)
+                            send_tele_msg("Removing {} on {}".format(slave, date), receiver_id="SUPERUSERS")
                             conductTrackingSheet.delete_columns(index+1, index+2)
                             changesMade = True
                             # do not break here 
@@ -532,7 +536,7 @@ def updateConductTracking(receiver_id = None):
                     if currentIndex is None: currentIndex = len(allDates)-1 # never make changes during first pass
                     if not correctConduct and currentIndex is not None and currentIndex+1 == len(allDates): # never make changes during subsequent passes
                         # print("Missing conducts: ", timetreeConduct, timetreeDate)
-                        send_tele_msg("Adding {} on {}".format(timetreeConduct, timetreeDate), receiver_id=receiver_id)
+                        send_tele_msg("Adding {} on {}".format(timetreeConduct, timetreeDate), receiver_id="SUPERUSERS")
                         requests = [{
                             'insertDimension': {
                                 'range': {
@@ -564,10 +568,10 @@ def updateConductTracking(receiver_id = None):
                         break
                     prevDateTimeObject = dateObject
                 if changesMade: break
-        send_tele_msg("Finished", receiver_id=receiver_id)
+        send_tele_msg("Finished", receiver_id="SUPERUSERS")
     except Exception as e:
         print("Encountered exception:\n{}".format(traceback.format_exc()))
-        send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
+        send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
 
 def checkMcStatus(receiver_id = None):
 
@@ -963,10 +967,10 @@ def updateWhatsappGrp(cet, receiver_id = None):
                 cetQueue.put((newDate, fpTime, receiver_id))
         if noFPTimeFound: 
             cetQueue.put(None)
-            send_tele_msg("No FP time found. CDS reminder not scheduled.", receiver_id=receiver_id)
+            send_tele_msg("No FP time found. CDS reminder not scheduled.", receiver_id="SUPERUSERS")
         if (CDS is None and PDS7 is None and PDS8 is None and PDS9 is None) or newDate is None: raise Exception
     except Exception as e: 
-        send_tele_msg("Unrecognized CET", receiver_id=receiver_id)
+        send_tele_msg("Unrecognized CET", receiver_id="SUPERUSERS")
         return
     
     # Renaming of group name
@@ -980,19 +984,19 @@ def updateWhatsappGrp(cet, receiver_id = None):
     response = rq.post(url, json=payload)
     if response.status_code == 200: group_data = response.json()
     else: 
-        send_tele_msg("Failed to retrieve group data: {}\nAborting updating duty group.".format(response.json()), receiver_id=receiver_id)
+        send_tele_msg("Failed to retrieve group data: {}\nAborting updating duty group.".format(response.json()), receiver_id="SUPERUSERS")
         group_data = None
         return
     if group_data is not None: 
         nextDutyCmds = []
         try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[CDS])
-        except KeyError: send_tele_msg("Unknown CDS: {}".format(CDS), receiver_id=receiver_id)
+        except KeyError: send_tele_msg("Unknown CDS: {}".format(CDS), receiver_id="SUPERUSERS")
         try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS7])
-        except KeyError: send_tele_msg("Unknown PDS7: {}".format(PDS7), receiver_id=receiver_id)
+        except KeyError: send_tele_msg("Unknown PDS7: {}".format(PDS7), receiver_id="SUPERUSERS")
         try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS8])
-        except KeyError: send_tele_msg("Unknown PDS8: {}".format(PDS8), receiver_id=receiver_id)
+        except KeyError: send_tele_msg("Unknown PDS8: {}".format(PDS8), receiver_id="SUPERUSERS")
         try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS9])
-        except KeyError: send_tele_msg("Unknown PDS9: {}".format(PDS9), receiver_id=receiver_id)
+        except KeyError: send_tele_msg("Unknown PDS9: {}".format(PDS9), receiver_id="SUPERUSERS")
         allMembers = group_data['participants']
         for member in allMembers:
             memberId = member['id'].split('@c.us')[0][2:]
@@ -1016,7 +1020,7 @@ def updateWhatsappGrp(cet, receiver_id = None):
     response = rq.post(url, json=payload)
     if response.status_code == 200: group_data = response.json()
     else: 
-        send_tele_msg("Unable to check whether all members were added successfully: {}.".format(response.json()), receiver_id=receiver_id)
+        send_tele_msg("Unable to check whether all members were added successfully: {}.".format(response.json()), receiver_id="SUPERUSERS")
         group_data = None
     if group_data is not None: 
         allMembers = group_data['participants']
@@ -1026,9 +1030,9 @@ def updateWhatsappGrp(cet, receiver_id = None):
             if memberId not in allMemberNumbers:
                 for name, number in CHARLIE_DUTY_CMDS.items():
                     if memberId == number: 
-                        send_tele_msg("{} - {} was not added succesfully".format(name.replace("3SG", "").replace("2SG", ""), memberId), receiver_id=receiver_id)
+                        send_tele_msg("{} - {} was not added succesfully".format(name.replace("3SG", "").replace("2SG", ""), memberId), receiver_id="SUPERUSERS")
                         break
-    send_tele_msg("Updated duty group", receiver_id=receiver_id)
+    send_tele_msg("Updated duty group", receiver_id="SUPERUSERS")
 
 def autoCheckMA():
     try:
@@ -1172,7 +1176,7 @@ async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYP
         if masterUserRequests[str(update.effective_user.id)] is None or time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
             if updateConductUserRequests[str(update.effective_user.id)] is None or not updateConductUserRequests[str(update.effective_user.id)].is_alive():
                 masterUserRequests[str(update.effective_user.id)] = time.time()
-                await update.message.reply_text("Updating conduct tracking...")
+                send_tele_msg("Updating conduct tracking...", receiver_id="SUPERUSERS")
                 t1 = threading.Thread(target=updateConductTracking, args=(str(update.effective_user.id),))
                 t1.start()
                 updateConductUserRequests[str(update.effective_user.id)] = t1
@@ -1640,8 +1644,11 @@ async def cancel_ir(update: Update, context: CallbackContext) -> int:
         return ConversationHandler.END
 
 async def cancel_dutygrp(update: Update, context: CallbackContext) -> int:
-    if str(update.effective_user.id) in list(CHANNEL_IDS.values()):
-        await update.message.reply_text('Updating cancelled')
+    if str(update.effective_user.id) in list(SUPERUSERS.values()):
+        send_tele_msg('Updating cancelled', receiver_id="SUPERUSERS")
+        return ConversationHandler.END
+    elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
+        await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
         return ConversationHandler.END
     else: 
         await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
