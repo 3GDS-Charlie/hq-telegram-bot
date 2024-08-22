@@ -1234,7 +1234,7 @@ NEW, CHECK_PREV_IR, PREV_IR, TRAINING, NAME, CHECK_PES, DATE_TIME, LOCATION, DES
 
 async def start(update: Update, context: CallbackContext) -> int:
     if str(update.effective_user.id) not in list(CHANNEL_IDS.values()): 
-        await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for any issues.")
+        await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
         return ConversationHandler.END
     try: masterUserRequests[str(update.effective_user.id)]
     except KeyError: masterUserRequests[str(update.effective_user.id)] = None
