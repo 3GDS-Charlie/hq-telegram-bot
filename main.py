@@ -1252,20 +1252,20 @@ async def start(update: Update, context: CallbackContext) -> int:
 
 async def checkPrevIR(update: Update, context: CallbackContext) -> int:
     context.user_data['new'] = update.message.text
-    if update.message.text == "Update" or update.message.text == "Final":
+    if update.message.text.upper() == "UPDATE" or update.message.text.upper() == "FINAL":
         reply_keyboard = [['Yes', 'No']]
         await update.message.reply_text(
-            "Is there a previous IR ?",
+            "Is there a previous IR ? (Yes/No)",
             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
         )
         return PREV_IR
     else: return await new(update, context)
 
 async def prevIR(update: Update, context: CallbackContext) -> int:
-    if update.message.text == "Yes":
+    if update.message.text.upper() == "YES":
         await update.message.reply_text("Send the previous IR")
         return LOCATION
-    elif update.message.text == "No":
+    elif update.message.text.upper() == "NO":
         return await new(update, context)
 
 async def new(update: Update, context: CallbackContext) -> int:
@@ -1532,7 +1532,7 @@ async def follow_up(update: Update, context: CallbackContext) -> int:
     context.user_data['follow_up'] = update.message.text
     reply_keyboard = [['Yes', 'No']]
     await update.message.reply_text(
-        "Has the NOK (Next of Kin) been informed? (Yes/No)",
+        "Has the NOK (Next of Kin) been informed ? (Yes/No)",
         reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
     return NOK
 
