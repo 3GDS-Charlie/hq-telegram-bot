@@ -1221,15 +1221,6 @@ async def updateDutyGrp(update: Update, context: CallbackContext) -> int:
     updateDutyGrpUserRequests[str(update.effective_user.id)] = t1
     return ConversationHandler.END
 
-user_responses = {}
-usingPrevIR = False
-prevIRDetails = None
-findingName = False
-findingDateTime = False
-findingLocation = False
-checkingName = False
-nameTobeChecked = None
-shiftingStatus = False
 NEW, CHECK_PREV_IR, PREV_IR, TRAINING, NAME, CHECK_PES, DATE_TIME, LOCATION, DESCRIPTION, STATUS, FOLLOW_UP, NOK, REPORTED_BY = range(13)
 
 async def start(update: Update, context: CallbackContext) -> int:
@@ -1240,15 +1231,14 @@ async def start(update: Update, context: CallbackContext) -> int:
     except KeyError: masterUserRequests[str(update.effective_user.id)] = None
     if masterUserRequests[str(update.effective_user.id)] is None or time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
         masterUserRequests[str(update.effective_user.id)] = time.time()
-        global user_responses, usingPrevIR, prevIRDetails, findingName, findingDateTime, findingLocation, checkingName, nameTobeChecked
-        user_responses = {}
-        usingPrevIR = False
-        prevIRDetails = None
-        findingName = False
-        findingDateTime = False
-        findingLocation = False
-        checkingName = False
-        nameTobeChecked = None
+        context.user_data['usingPrevIR'] = False
+        context.user_data['prevIRDetails'] = None
+        context.user_data['findingName'] = False
+        context.user_data['findingDateTime'] = False
+        context.user_data['findingLocation'] = False
+        context.user_data['checkingName'] = False
+        context.user_data['nameToBeChecked'] = None
+        context.user_data['shiftingStatus'] = False
         await update.message.reply_text("Send /cancel to cancel the IR generation any point in time.")
         reply_keyboard = [['New', 'Update', 'Final']]
         await update.message.reply_text(
@@ -1261,7 +1251,7 @@ async def start(update: Update, context: CallbackContext) -> int:
         return ConversationHandler.END
 
 async def checkPrevIR(update: Update, context: CallbackContext) -> int:
-    user_responses['new'] = update.message.text
+    context.user_data['new'] = update.message.text
     if update.message.text == "Update" or update.message.text == "Final":
         reply_keyboard = [['Yes', 'No']]
         await update.message.reply_text(
@@ -1288,23 +1278,22 @@ async def new(update: Update, context: CallbackContext) -> int:
     return TRAINING
 
 async def training(update: Update, context: CallbackContext) -> int:
-    if not findingName: user_responses['training_related'] = update.message.text
-    if usingPrevIR and not findingName: return await location(update, context)
+    if not context.user_data['findingName']: context.user_data['training_related'] = update.message.text
+    if context.user_data['usingPrevIR'] and not context.user_data['findingName']: return await location(update, context)
     await update.message.reply_text("Please provide the name of the personnel involved:")
     return NAME
 
 async def name(update: Update, context: CallbackContext) -> int:
-    global checkingName, nameTobeChecked
     gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
     sheet = gc.open("Charlie Nominal Roll")
     cCoyNominalRollSheet = sheet.worksheet("COMPANY ORBAT")
     allValues = cCoyNominalRollSheet.get_all_values()
     formattedAllValues = list(zip(*allValues))[5]
-    if not checkingName: userInput = update.message.text
+    if not context.user_data['checkingName']: userInput = update.message.text
     else: 
-        nameTobeChecked = nameTobeChecked.split(' ')
-        del nameTobeChecked[0] # remove rank
-        userInput = "".join(nameTobeChecked)
+        context.user_data['nameToBeChecked'] = context.user_data['nameToBeChecked'].split(' ')
+        del context.user_data['nameToBeChecked'][0] # remove rank
+        userInput = "".join(context.user_data['nameToBeChecked'])
 
     formatteduserInput = userInput.replace(" ", "").upper()
     allMatches = list()
@@ -1312,7 +1301,7 @@ async def name(update: Update, context: CallbackContext) -> int:
     for index, value in enumerate(formattedAllValues, start = 0):
         if formatteduserInput in value.replace(" ", "").upper():
             allMatches.append(allValues[index][5])
-            user_responses['name'] = allValues[index]
+            context.user_data['name'] = allValues[index]
             foundPersonnel = True
     if not foundPersonnel: 
         await update.message.reply_text("Unable to find {}. Please provide another name:".format(userInput))
@@ -1323,38 +1312,36 @@ async def name(update: Update, context: CallbackContext) -> int:
             "Please specify the personnel involved:",
             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
         return NAME
-    if user_responses['name'][15] == "":
+    if context.user_data['name'][15] == "":
         reply_keyboard = [['A', 'B1']]
         await update.message.reply_text(
             "What is the PES status of {} ?".format(userInput),
             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
         return CHECK_PES
-    if findingName or checkingName: return await location(update, context)
+    if context.user_data['findingName'] or context.user_data['checkingName']: return await location(update, context)
     await update.message.reply_text("Please provide the date and time of the incident (e.g. 310124 1430):")
     return DATE_TIME
 
 async def checkPes(update: Update, context: CallbackContext) -> int:
-    global findingDateTime, checkingName
-    if not findingDateTime:
+    if not context.user_data['findingDateTime']:
         allPesStatus = ['A', 'B1', 'B2', 'B3', 'B4', 'C2', 'C9', 'D', 'E1', 'E9', 'F', 'BP']
         pes = update.message.text
         if pes not in allPesStatus: 
             await update.message.reply_text("Unknown PES Status: {}. Please send another PES status:".format(pes))
             return CHECK_PES
-        user_responses['name'][15] = pes
-    if findingName or checkingName: return await location(update, context)
+        context.user_data['name'][15] = pes
+    if context.user_data['findingName'] or context.user_data['checkingName']: return await location(update, context)
     await update.message.reply_text("Please provide the date and time of the incident (e.g. 310124 1430):")
     return DATE_TIME
 
 async def date_time(update: Update, context: CallbackContext) -> int:
-    global findingLocation
-    if not findingLocation:
+    if not context.user_data['findingLocation']:
         userInput = update.message.text.replace(" ", "")
         if len(userInput) != 10:
             await update.message.reply_text("Unrecognised datetime {}. Please provide another date and time in the format (310124 1430):".format(update.message.text))
             return DATE_TIME
-        user_responses['date_time'] = userInput
-        if usingPrevIR: return await location(update, context)
+        context.user_data['date_time'] = userInput
+        if context.user_data['usingPrevIR']: return await location(update, context)
     reply_keyboard = [["Serviceman's Residence", 'Bedok Camp 2']]
     await update.message.reply_text(
         "Location of incident ?", 
@@ -1363,44 +1350,43 @@ async def date_time(update: Update, context: CallbackContext) -> int:
 
 async def location(update: Update, context: CallbackContext) -> int:
     response = update.message.text # could be a previous IR or just purely location
-    global usingPrevIR, prevIRDetails, user_responses, checkingName, nameTobeChecked, findingName, findingDateTime, findingLocation, shiftingStatus
-    if usingPrevIR and "INCIDENT" not in response and findingLocation: user_responses['location'] = response # should be location response
-    if "INCIDENT" in response or usingPrevIR: # previous IR
-        usingPrevIR = True
-        if "INCIDENT" in response: prevIRDetails = response
-        lines = prevIRDetails.split('\n')
+    if context.user_data['usingPrevIR'] and "INCIDENT" not in response and context.user_data['findingLocation']: context.user_data['location'] = response # should be location response
+    if "INCIDENT" in response or context.user_data['usingPrevIR']: # previous IR
+        context.user_data['usingPrevIR'] = True
+        if "INCIDENT" in response: context.user_data['prevIRDetails'] = response
+        lines = context.user_data['prevIRDetails'].split('\n')
         try: 
-            natureOfIncident = user_responses['training_related']
+            natureOfIncident = context.user_data['training_related']
             foundNatureOfIncident = True
         except KeyError:
             foundNatureOfIncident = False
             natureOfIncident = None
         try:
-            name_t = user_responses['name']
+            name_t = context.user_data['name']
             foundName = True
         except KeyError:
             foundName = False
             name_t = None
         try:
-            dateTime = user_responses['date_time']
+            dateTime = context.user_data['date_time']
             foundDateTime = True
         except KeyError:
             foundDateTime = False
             dateTime = None
         try:
-            location = user_responses['location']
+            location = context.user_data['location']
             foundLocation = True
         except KeyError:
             foundLocation = False
             location = None
         try: 
-            description = user_responses['description']
+            description = context.user_data['description']
             foundDescription = True
         except KeyError: 
             foundDescription = False
             description = None
         try: 
-            status = user_responses['status']
+            status = context.user_data['status']
             foundStatus = True
         except KeyError: 
             foundStatus = False
@@ -1413,7 +1399,7 @@ async def location(update: Update, context: CallbackContext) -> int:
             if not foundNatureOfIncident: continue
             if line == "": continue
             if natureOfIncident is None: 
-                user_responses['training_related'] = line.replace(" Related", "").replace("Related", "")
+                context.user_data['training_related'] = line.replace(" Related", "").replace("Related", "")
                 natureOfIncident = line.replace(" Related", "").replace("Related", "")
                 continue
 
@@ -1423,11 +1409,11 @@ async def location(update: Update, context: CallbackContext) -> int:
             if not foundName: continue
             if line == "": continue
             if name_t is None: 
-                checkingName = True
-                nameTobeChecked = line
+                context.user_data['checkingName'] = True
+                context.user_data['nameToBeChecked'] = line
                 return await name(update, context)
-            checkingName = False
-            nameTobeChecked = None
+            context.user_data['checkingName'] = False
+            context.user_data['nameToBeChecked'] = None
 
             if not foundDateTime and line.replace("*", "").replace(" ", "").replace(":", "") == "3)Date&TimeofIncident":
                 foundDateTime = True
@@ -1436,7 +1422,7 @@ async def location(update: Update, context: CallbackContext) -> int:
             if line == "": continue
             if dateTime is None:
                 dateTime = line.replace("/", "").replace(" ", "").replace("hrs", "").replace("hr", "")
-                user_responses['date_time'] = line.replace("/", "").replace(" ", "").replace("hrs", "").replace("hr", "")
+                context.user_data['date_time'] = line.replace("/", "").replace(" ", "").replace("hrs", "").replace("hr", "")
                 continue
 
             if not foundLocation and line.replace("*", "").replace(" ", "").replace(":", "") == "4)LocationofIncident":
@@ -1446,7 +1432,7 @@ async def location(update: Update, context: CallbackContext) -> int:
             if line == "": continue
             if location is None:
                 location = line
-                user_responses['location'] = line
+                context.user_data['location'] = line
                 continue
                 
             if not foundDescription and line.replace("*", "").replace(" ", "").replace(":", "") == "5)BriefDescription":
@@ -1456,7 +1442,7 @@ async def location(update: Update, context: CallbackContext) -> int:
             if line == "": continue
             if description is None:
                 description = line
-                user_responses['description'] = line
+                context.user_data['description'] = line
                 continue
 
             if not foundStatus and line.replace("*", "").replace(" ", "").replace(":", "") == "6)CurrentStatus":
@@ -1466,26 +1452,26 @@ async def location(update: Update, context: CallbackContext) -> int:
             status = line
             break
         
-        if natureOfIncident is not None and natureOfIncident in ['Training', 'Non-Training']: user_responses['training_related'] = natureOfIncident
+        if natureOfIncident is not None and natureOfIncident in ['Training', 'Non-Training']: context.user_data['training_related'] = natureOfIncident
         else: return await new(update, context)
 
         if name_t is None: 
-            findingName = True
+            context.user_data['findingName'] = True
             return await training(update, context)
-        findingName = False
+        context.user_data['findingName'] = False
         
         if dateTime is None: 
-            findingDateTime = True
+            context.user_data['findingDateTime'] = True
             return await checkPes(update, context)
-        findingDateTime = False
+        context.user_data['findingDateTime'] = False
 
         if location is None: 
-            findingLocation = True
+            context.user_data['findingLocation'] = True
             return await date_time(update, context)
-        findingLocation = False
+        context.user_data['findingLocation'] = False
 
-        if status is not None and not shiftingStatus and description is not None:
-            shiftingStatus = True
+        if status is not None and not context.user_data['shiftingStatus'] and description is not None:
+            context.user_data['shiftingStatus'] = True
             reply_keyboard = [['Yes', 'No']]
             await update.message.reply_text("Shift the previous status to the description ?",
                                             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
@@ -1494,36 +1480,36 @@ async def location(update: Update, context: CallbackContext) -> int:
         if description is not None:
             reply_keyboard = [['No Changes']]
             await update.message.reply_text("Please update the description following the below text")
-            if shiftingStatus and response == 'Yes':
+            if context.user_data['shiftingStatus'] and response == 'Yes':
                 await update.message.reply_text(
                     description + '\n\n' + status, 
                     reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
-                user_responses['description'] = description + '\n\n' + status
+                context.user_data['description'] = description + '\n\n' + status
             else:
                 await update.message.reply_text(
                     description, 
                     reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
-                user_responses['description'] = description
-            shiftingStatus = False
+                context.user_data['description'] = description
+            context.user_data['shiftingStatus'] = False
             return DESCRIPTION
         else:
             await update.message.reply_text("Please write the description following the below text")
-            await update.message.reply_text("On {} at about {}hrs, {} {}...".format(user_responses['date_time'][:6], user_responses['date_time'][-4:], user_responses['name'][4], user_responses['name'][5]))
+            await update.message.reply_text("On {} at about {}hrs, {} {}...".format(context.user_data['date_time'][:6], context.user_data['date_time'][-4:], context.user_data['name'][4], context.user_data['name'][5]))
             await update.message.reply_text("Refer to the templates below when writing your description:\n\n*Normal Report Sick*\n\\.\\.\\. requested permission from *\\(RANK \\+ NAME\\)* to report sick at *\\(LOCATION\\)* for *\\(REASON\\)*\\.\n\n*Medical Appointment*\n\\.\\.\\. has left *\\(LOCATION\\)* to attend his *\\(TYPE\\)* *\\(medical appointment\\/surgery\\)* at *\\(LOCATION\\)*", parse_mode='MarkdownV2')
             return DESCRIPTION
 
     else:
-        user_responses['location'] = update.message.text
+        context.user_data['location'] = update.message.text
         await update.message.reply_text("Please write the description following the below text")
-        await update.message.reply_text("On {} at about {}hrs, {} {}...".format(user_responses['date_time'][:6], user_responses['date_time'][-4:], user_responses['name'][4], user_responses['name'][5]))
+        await update.message.reply_text("On {} at about {}hrs, {} {}...".format(context.user_data['date_time'][:6], context.user_data['date_time'][-4:], context.user_data['name'][4], context.user_data['name'][5]))
         await update.message.reply_text("Refer to the templates below when writing your description:\n\n*Normal Report Sick*\n\\.\\.\\. requested permission from *\\(RANK \\+ NAME\\)* to report sick at *\\(LOCATION\\)* for *\\(REASON\\)*\\.\n\n*Medical Appointment*\n\\.\\.\\. has left *\\(LOCATION\\)* to attend his *\\(TYPE\\)* *\\(medical appointment\\/surgery\\)* at *\\(LOCATION\\)*", parse_mode='MarkdownV2')
         return DESCRIPTION
 
 async def description(update: Update, context: CallbackContext) -> int:
-    if update.message.text != 'No Changes' and not usingPrevIR:
-        user_responses['description'] = "On {} at about {}hrs, {} {} ".format(user_responses['date_time'][:6], user_responses['date_time'][-4:], user_responses['name'][4], user_responses['name'][5]) + update.message.text
-    elif update.message.text != 'No Changes' and usingPrevIR:
-        user_responses['description'] = user_responses['description'] + update.message.text
+    if update.message.text != 'No Changes' and not context.user_data['usingPrevIR']:
+        context.user_data['description'] = "On {} at about {}hrs, {} {} ".format(context.user_data['date_time'][:6], context.user_data['date_time'][-4:], context.user_data['name'][4], context.user_data['name'][5]) + update.message.text
+    elif update.message.text != 'No Changes' and context.user_data['usingPrevIR']:
+        context.user_data['description'] = context.user_data['description'] + update.message.text
     await update.message.reply_text("What is the current status?")
     await update.message.reply_text("Refer to the templates below when writing your status:\n\nServiceman is currently making his way to *\\(LOCATION\\)*\\.\n\n*Normal Report Sick*\nServiceman has received *\\(DURATION OF MC\\/STATUS \\+ WHAT MC\\/STATUS\\)* from *\\(START DATE\\)* to *\\(END DATE\\)* inclusive\\.\n\n*Medical Appointments*\nServiceman has completed his appointment\\.\\.\\.\n\n\
 1\\) with no status\\.\n\n\
@@ -1533,9 +1519,9 @@ async def description(update: Update, context: CallbackContext) -> int:
     return STATUS
 
 async def status(update: Update, context: CallbackContext) -> int:
-    user_responses['status'] = update.message.text
-    if user_responses['new'] == "Final": reply_keyboard = [['Unit will proceed to close the case.']]
-    elif user_responses['new'] == "New" or user_responses['new'] == "Update": reply_keyboard = [['Unit will monitor and update accordingly.']]
+    context.user_data['status'] = update.message.text
+    if context.user_data['new'] == "Final": reply_keyboard = [['Unit will proceed to close the case.']]
+    elif context.user_data['new'] == "New" or context.user_data['new'] == "Update": reply_keyboard = [['Unit will monitor and update accordingly.']]
     else: reply_keyboard = [['Unit will monitor and update accordingly.', 'Unit will proceed to close the case.']]
     await update.message.reply_text(
         "Follow-up actions?", 
@@ -1543,7 +1529,7 @@ async def status(update: Update, context: CallbackContext) -> int:
     return FOLLOW_UP
 
 async def follow_up(update: Update, context: CallbackContext) -> int:
-    user_responses['follow_up'] = update.message.text
+    context.user_data['follow_up'] = update.message.text
     reply_keyboard = [['Yes', 'No']]
     await update.message.reply_text(
         "Has the NOK (Next of Kin) been informed? (Yes/No)",
@@ -1551,7 +1537,7 @@ async def follow_up(update: Update, context: CallbackContext) -> int:
     return NOK
 
 async def nok(update: Update, context: CallbackContext) -> int:
-    user_responses['nok_informed'] = update.message.text
+    context.user_data['nok_informed'] = update.message.text
     await update.message.reply_text("Who is reporting this incident?")
     return REPORTED_BY
 
@@ -1578,7 +1564,7 @@ async def reported_by(update: Update, context: CallbackContext) -> int:
     if reportingPerson is None: 
         await update.message.reply_text("Unable to find {}. Please provide another name:".format(userInput))
         return REPORTED_BY
-    user_responses['reported_by'] = reportingPerson
+    context.user_data['reported_by'] = reportingPerson
     await update.message.reply_text("Generating IR...")
     await update.message.reply_text("*INCIDENT REPORT*\n\
 *{}: 3 GDS {} RELATED REPORT*\n\
@@ -1619,17 +1605,17 @@ ASIS Report - No\n\
 \n\
 *10) Reported By:*\n\
 {} {}\n\
-(HP: {} {})".format(user_responses['new'].upper(), user_responses['training_related'].upper(),
-        user_responses['training_related'],
-        user_responses['name'][4], user_responses['name'][5],
-        user_responses['name'][3],
-        user_responses['name'][15],
-        user_responses['date_time'][:6], user_responses['date_time'][-4:],
-        user_responses['location'],
-        user_responses['description'],
-        user_responses['status'],
-        user_responses['follow_up'],
-        user_responses['nok_informed'],
+(HP: {} {})".format(context.user_data['new'].upper(), context.user_data['training_related'].upper(),
+        context.user_data['training_related'],
+        context.user_data['name'][4], context.user_data['name'][5],
+        context.user_data['name'][3],
+        context.user_data['name'][15],
+        context.user_data['date_time'][:6], context.user_data['date_time'][-4:],
+        context.user_data['location'],
+        context.user_data['description'],
+        context.user_data['status'],
+        context.user_data['follow_up'],
+        context.user_data['nok_informed'],
         reportingPerson[4], reportingPerson[5],
         reportingPerson[8][:4], reportingPerson[8][-4:]))
     await update.message.reply_text("Copy and paste the generated IR to WhatsApp")
@@ -1696,7 +1682,8 @@ def telegram_manager() -> None:
             NOK: [MessageHandler(filters.TEXT & ~filters.COMMAND, nok)],
             REPORTED_BY: [MessageHandler(filters.TEXT & ~filters.COMMAND, reported_by)],
         },
-        fallbacks=[CommandHandler('cancel', cancel_ir)],)
+        fallbacks=[CommandHandler('cancel', cancel_ir)],
+        allow_reentry=True)
 
     # Add the conversation handler
     application.add_handler(conv_dutygrp_handler)
