@@ -59,11 +59,14 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
+ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
 
 masterUserRequests = dict()
 rateLimit = 1 # number of seconds between commands per user
 
+def escapeChar(text: str):
+    return text.replace("_", "\\_").replace("*", "\\*").replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)").replace("~", "\\~").replace("`", "\\`").replace(">", "\\>").replace("#", "\\#").replace("+", "\\+").replace("-", "\\-").replace("=", "\\=").replace("|", "\\|").replace("{", "\\{").replace("}", "\\}").replace(".", "\\.").replace("!", "\\!")
+    
 def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None):
 
     """
@@ -1222,6 +1225,7 @@ findingDateTime = False
 findingLocation = False
 checkingName = False
 nameTobeChecked = None
+shiftingStatus = False
 NEW, CHECK_PREV_IR, PREV_IR, TRAINING, NAME, CHECK_PES, DATE_TIME, LOCATION, DESCRIPTION, STATUS, FOLLOW_UP, NOK, REPORTED_BY = range(13)
 
 async def start(update: Update, context: CallbackContext) -> int:
@@ -1355,7 +1359,8 @@ async def date_time(update: Update, context: CallbackContext) -> int:
 
 async def location(update: Update, context: CallbackContext) -> int:
     response = update.message.text # could be a previous IR or just purely location
-    global usingPrevIR, prevIRDetails, user_responses, checkingName, nameTobeChecked, findingName, findingDateTime, findingLocation
+    global usingPrevIR, prevIRDetails, user_responses, checkingName, nameTobeChecked, findingName, findingDateTime, findingLocation, shiftingStatus
+    if usingPrevIR and "INCIDENT" not in response and findingLocation: user_responses['location'] = response # should be location response
     if "INCIDENT" in response or usingPrevIR: # previous IR
         usingPrevIR = True
         if "INCIDENT" in response: prevIRDetails = response
@@ -1390,6 +1395,12 @@ async def location(update: Update, context: CallbackContext) -> int:
         except KeyError: 
             foundDescription = False
             description = None
+        try: 
+            status = user_responses['status']
+            foundStatus = True
+        except KeyError: 
+            foundStatus = False
+            status = None
 
         for line in lines:
             if not foundNatureOfIncident and line.replace("*", "").replace(" ", "").replace(":", "") == "1)NatureandTypeofIncident":
@@ -1433,12 +1444,22 @@ async def location(update: Update, context: CallbackContext) -> int:
                 location = line
                 user_responses['location'] = line
                 continue
-
-            if not foundDescription and line.replace("*", "").replace(" ", "") == "5)BriefDescription":
+                
+            if not foundDescription and line.replace("*", "").replace(" ", "").replace(":", "") == "5)BriefDescription":
                 foundDescription = True
                 continue
             if not foundDescription: continue
-            description = line
+            if line == "": continue
+            if description is None:
+                description = line
+                user_responses['description'] = line
+                continue
+
+            if not foundStatus and line.replace("*", "").replace(" ", "").replace(":", "") == "6)CurrentStatus":
+                foundStatus = True
+                continue
+            if not foundStatus: continue
+            status = line
             break
         
         if natureOfIncident is not None and natureOfIncident in ['Training', 'Non-Training']: user_responses['training_related'] = natureOfIncident
@@ -1459,31 +1480,52 @@ async def location(update: Update, context: CallbackContext) -> int:
             return await date_time(update, context)
         findingLocation = False
 
+        if status is not None and not shiftingStatus and description is not None:
+            shiftingStatus = True
+            reply_keyboard = [['Yes', 'No']]
+            await update.message.reply_text("Shift the previous status to the description ?",
+                                            reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
+            return LOCATION
+
         if description is not None:
             reply_keyboard = [['No Changes']]
             await update.message.reply_text("Please update the description following the below text")
-            await update.message.reply_text(
-                description, 
-                reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
-            user_responses['description'] = description
+            if shiftingStatus and response == 'Yes':
+                await update.message.reply_text(
+                    description + '\n\n' + status, 
+                    reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
+                user_responses['description'] = description + '\n\n' + status
+            else:
+                await update.message.reply_text(
+                    description, 
+                    reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
+                user_responses['description'] = description
+            shiftingStatus = False
             return DESCRIPTION
         else:
             await update.message.reply_text("Please write the description following the below text")
             await update.message.reply_text("On {} at about {}hrs, {} {}...".format(user_responses['date_time'][:6], user_responses['date_time'][-4:], user_responses['name'][4], user_responses['name'][5]))
-            await update.message.reply_text("Refer to the templates below when writing your description:\nNormal Report Sick\n ... requested permission from (RANK + NAME) to report sick at (LOCATION).\n\nMedical Appointment\n ... left (LOCATION) to go to (LOCATION) for his (TYPE) medical appointment")
+            await update.message.reply_text("Refer to the templates below when writing your description:\n\n*Normal Report Sick*\n\\.\\.\\. requested permission from *\\(RANK \\+ NAME\\)* to report sick at *\\(LOCATION\\)* for *\\(REASON\\)*\\.\n\n*Medical Appointment*\n\\.\\.\\. has left *\\(LOCATION\\)* to attend his *\\(TYPE\\)* *\\(medical appointment\\/surgery\\)* at *\\(LOCATION\\)*", parse_mode='MarkdownV2')
             return DESCRIPTION
 
     else:
         user_responses['location'] = update.message.text
         await update.message.reply_text("Please write the description following the below text")
         await update.message.reply_text("On {} at about {}hrs, {} {}...".format(user_responses['date_time'][:6], user_responses['date_time'][-4:], user_responses['name'][4], user_responses['name'][5]))
-        await update.message.reply_text("Refer to the templates below when writing your description:\nNormal Report Sick\n ... requested permission from (RANK + NAME) to report sick at (LOCATION).\n\nMedical Appointment\n ... left (LOCATION) to go to (LOCATION) for his (TYPE) medical appointment")
+        await update.message.reply_text("Refer to the templates below when writing your description:\n\n*Normal Report Sick*\n\\.\\.\\. requested permission from *\\(RANK \\+ NAME\\)* to report sick at *\\(LOCATION\\)* for *\\(REASON\\)*\\.\n\n*Medical Appointment*\n\\.\\.\\. has left *\\(LOCATION\\)* to attend his *\\(TYPE\\)* *\\(medical appointment\\/surgery\\)* at *\\(LOCATION\\)*", parse_mode='MarkdownV2')
         return DESCRIPTION
 
 async def description(update: Update, context: CallbackContext) -> int:
-    if update.message.text != 'No Changes':
+    if update.message.text != 'No Changes' and not usingPrevIR:
         user_responses['description'] = "On {} at about {}hrs, {} {} ".format(user_responses['date_time'][:6], user_responses['date_time'][-4:], user_responses['name'][4], user_responses['name'][5]) + update.message.text
+    elif update.message.text != 'No Changes' and usingPrevIR:
+        user_responses['description'] = user_responses['description'] + update.message.text
     await update.message.reply_text("What is the current status?")
+    await update.message.reply_text("Refer to the templates below when writing your status:\n\nServiceman is currently making his way to *\\(LOCATION\\)*\\.\n\n*Normal Report Sick*\nServiceman has received *\\(DURATION OF MC\\/STATUS \\+ WHAT MC\\/STATUS\\)* from *\\(START DATE\\)* to *\\(END DATE\\)* inclusive\\.\n\n*Medical Appointments*\nServiceman has completed his appointment\\.\\.\\.\n\n\
+1\\) with no status\\.\n\n\
+2\\) and was given *\\(DURATION OF MC\\/STATUS \\+ WHAT MC\\/STATUS\\)* from *\\(START DATE\\)* to *\\(END DATE\\)* inclusive\\.\n\n\
+3\\) *\\(If Applicable\\)* and was scheduled a follow up appointment on *\\(DATE OF FOLLOW UP APPT\\)*\\.\n\n\
+*\\(If Applicable\\) *Serviceman is currently headed home to consume his MC\\.", parse_mode='MarkdownV2')
     return STATUS
 
 async def status(update: Update, context: CallbackContext) -> int:
