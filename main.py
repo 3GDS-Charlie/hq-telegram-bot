@@ -1467,7 +1467,7 @@ async def location(update: Update, context: CallbackContext) -> int:
                 continue
             if not foundDescription: continue
             if line == "": continue
-            if description is None or line.replace("*", "").replace(" ", "").replace(":", "") != "6)CurrentStatus":
+            if description is None or (not foundStatus and line.replace("*", "").replace(" ", "").replace(":", "") != "6)CurrentStatus"):
                 if description is None: description = line
                 else: description = description + "\n\n" + line
                 context.user_data['description'] = description
