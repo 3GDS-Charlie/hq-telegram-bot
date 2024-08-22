@@ -1239,6 +1239,15 @@ async def start(update: Update, context: CallbackContext) -> int:
         context.user_data['checkingName'] = False
         context.user_data['nameToBeChecked'] = None
         context.user_data['shiftingStatus'] = False
+        context.user_data['new'] = None
+        context.user_data['training_related'] = None
+        context.user_data['name'] = None
+        context.user_data['date_time'] = None
+        context.user_data['location'] = None
+        context.user_data['description'] = None
+        context.user_data['status'] = None
+        context.user_data['follow_up'] = None
+        context.user_data['nok_informed'] = None
         await update.message.reply_text("Send /cancel to cancel the IR generation any point in time.")
         reply_keyboard = [['New', 'Update', 'Final']]
         await update.message.reply_text(
@@ -1369,36 +1378,42 @@ async def location(update: Update, context: CallbackContext) -> int:
         lines = context.user_data['prevIRDetails'].split('\n')
         try: 
             natureOfIncident = context.user_data['training_related']
+            if natureOfIncident is None: raise KeyError
             foundNatureOfIncident = True
         except KeyError:
             foundNatureOfIncident = False
             natureOfIncident = None
         try:
             name_t = context.user_data['name']
+            if name_t is None: raise KeyError
             foundName = True
         except KeyError:
             foundName = False
             name_t = None
         try:
             dateTime = context.user_data['date_time']
+            if dateTime is None: raise KeyError
             foundDateTime = True
         except KeyError:
             foundDateTime = False
             dateTime = None
         try:
             location = context.user_data['location']
+            if location is None: raise KeyError
             foundLocation = True
         except KeyError:
             foundLocation = False
             location = None
         try: 
             description = context.user_data['description']
+            if description is None: raise KeyError
             foundDescription = True
         except KeyError: 
             foundDescription = False
             description = None
         try: 
             status = context.user_data['status']
+            if status is None: raise KeyError
             foundStatus = True
         except KeyError: 
             foundStatus = False
@@ -1461,6 +1476,7 @@ async def location(update: Update, context: CallbackContext) -> int:
                 foundStatus = True
                 continue
             if not foundStatus: continue
+            if line == "": continue
             status = line
             break
         
@@ -1708,9 +1724,9 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
-    send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
-    send_tele_msg(ALL_COMMANDS)
-    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.")
+    # send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
+    # send_tele_msg(ALL_COMMANDS)
+    # send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.")
     cetQueue = multiprocessing.Queue()
     mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue,))
     mainCheckMcProcess.start()
