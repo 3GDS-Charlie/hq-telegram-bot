@@ -1251,6 +1251,9 @@ async def start(update: Update, context: CallbackContext) -> int:
         return ConversationHandler.END
 
 async def checkPrevIR(update: Update, context: CallbackContext) -> int:
+    if update.message.text.upper() not in ['NEW', 'UPDATE', 'FINAL']: 
+        await update.message.reply_text("Unrecognised response: {}. Please enter New or Update or Final.".format(update.message.text))
+        return CHECK_PREV_IR
     context.user_data['new'] = update.message.text
     if update.message.text.upper() == "UPDATE" or update.message.text.upper() == "FINAL":
         reply_keyboard = [['Yes', 'No']]
@@ -1267,18 +1270,27 @@ async def prevIR(update: Update, context: CallbackContext) -> int:
         return LOCATION
     elif update.message.text.upper() == "NO":
         return await new(update, context)
+    else:
+        await update.message.reply_text("Unrecognised response: {}. Please enter yes or no.".format(update.message.text))
+        return PREV_IR
 
 async def new(update: Update, context: CallbackContext) -> int:
     reply_keyboard = [['Training', 'Non-Training']]
     await update.message.reply_text(
-        "*Training* or *Non Training* related?",
+        "*Training* or *Non\\-Training* related?",
         reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
         parse_mode='MarkdownV2'
     )
     return TRAINING
 
 async def training(update: Update, context: CallbackContext) -> int:
-    if not context.user_data['findingName']: context.user_data['training_related'] = update.message.text
+    if not context.user_data['findingName']: 
+        if update.message.text.upper() not in ['TRAINING', 'NON TRAINING', 'NON-TRAINING']: 
+            await update.message.reply_text("Unrecognised response: {}. Please enter Training or Non-Training.".format(update.message.text))
+            return TRAINING
+        if update.message.text.upper() == "NON TRAINING":
+            context.user_data['training_related'] = "Non-Training"
+        else: context.user_data['training_related'] = update.message.text.lower().title()
     if context.user_data['usingPrevIR'] and not context.user_data['findingName']: return await location(update, context)
     await update.message.reply_text("Please provide the name of the personnel involved:")
     return NAME
@@ -1537,6 +1549,9 @@ async def follow_up(update: Update, context: CallbackContext) -> int:
     return NOK
 
 async def nok(update: Update, context: CallbackContext) -> int:
+    if update.message.text.upper() != "YES" and update.message.text.upper() != "NO":
+        await update.message.reply_text("Unrecognised response: {}. Please enter yes or no.".format(update.message.text))
+        return NOK
     context.user_data['nok_informed'] = update.message.text
     await update.message.reply_text("Who is reporting this incident?")
     return REPORTED_BY
