@@ -1314,7 +1314,7 @@ async def name(update: Update, context: CallbackContext) -> int:
     else: 
         context.user_data['nameToBeChecked'] = context.user_data['nameToBeChecked'].split(' ')
         del context.user_data['nameToBeChecked'][0] # remove rank
-        userInput = "".join(context.user_data['nameToBeChecked'])
+        userInput = " ".join(context.user_data['nameToBeChecked'])
 
     formatteduserInput = userInput.replace(" ", "").upper()
     allMatches = list()
