@@ -67,13 +67,13 @@ rateLimit = 1 # number of seconds between commands per user
 def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None):
 
     """
-        receiver_id -> SUPERUSERS/ALL/individual ID. None -> Send to everyone
+        receiver_id -> SUPERUSERS/NORMALUSERS/ALL/individual ID. None -> Send to everyone
         parseMode = 'MarkdownV2'
         replyMarkup for keyboards
     """
     if receiver_id is not None and not isinstance(receiver_id, str): receiver_id = str(receiver_id)
     
-    if receiver_id is None:
+    if receiver_id is None: # send to everyone
         for _, value in CHANNEL_IDS.items():
             asyncio.run(send_telegram_bot_msg(msg, value, parseMode, replyMarkup))
     else:
@@ -83,6 +83,9 @@ def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None
         elif receiver_id == "ALL": 
             for _, value in CHANNEL_IDS.items():
                 asyncio.run(send_telegram_bot_msg(msg, value, parseMode, replyMarkup))
+        elif receiver_id == "NORMALUSERS":
+            for _, value in CHANNEL_IDS.items():
+                if value not in list(SUPERUSERS.values()): asyncio.run(send_telegram_bot_msg(msg, value, parseMode, replyMarkup))
         elif receiver_id in list(CHANNEL_IDS.values()): asyncio.run(send_telegram_bot_msg(msg, receiver_id, parseMode, replyMarkup))
 
 async def send_telegram_bot_msg(msg, channel_id, parseMode, replyMarkup):
@@ -1117,6 +1120,8 @@ def main(cetQ):
         time.sleep(5)
 
 reply_keyboard_all_commands = [["/checkmcstatus", "/checkconduct", "/checkall", "/updatedutygrp", "/updateconducttracking", "/generateIR"]]
+NORMAL_USER_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
+\n/generateIR -> Help to generate IR"
 ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
 \n/updatedutygrp -> Update duty group and schedule CDS reminder according to CET\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree\
 \n/generateIR -> Help to generate IR"
@@ -1127,7 +1132,8 @@ async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         except KeyError: masterUserRequests[str(update.effective_user.id)] = None
         if masterUserRequests[str(update.effective_user.id)] is None or time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
             masterUserRequests[str(update.effective_user.id)] = time.time()
-            await update.message.reply_text(ALL_COMMANDS)
+            if str(update.effective_user.id) not in list(SUPERUSERS.values()): await update.message.reply_text(NORMAL_USER_COMMANDS)
+            else: await update.message.reply_text(ALL_COMMANDS)
         else: await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
@@ -1679,7 +1685,8 @@ async def cancel_dutygrp(update: Update, context: CallbackContext) -> int:
 async def unknownCommand(update: Update, context: CallbackContext) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()):
         await update.message.reply_text("Unrecognised command.")
-        await update.message.reply_text(ALL_COMMANDS)
+        if str(update.effective_user.id) in list(SUPERUSERS.values()): await update.message.reply_text(ALL_COMMANDS)
+        else: await update.message.reply_text(NORMAL_USER_COMMANDS)
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 def telegram_manager() -> None:
@@ -1730,8 +1737,9 @@ def telegram_manager() -> None:
 if __name__ == '__main__':
 
     send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
-    send_tele_msg(ALL_COMMANDS)
-    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.")
+    send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
+    send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
+    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
     cetQueue = multiprocessing.Queue()
     mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue,))
     mainCheckMcProcess.start()
