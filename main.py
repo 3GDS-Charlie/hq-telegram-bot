@@ -838,6 +838,9 @@ def checkMcStatus(receiver_id = None):
                                       gspread.cell.Cell(index, 7, mc[7])])
                 if mc in possibleMcList: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {} (Possible MC found)\n{}\n{}\n".format(mc[1], mc[2], mc[6], mc[7])])
                 else: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n{}\n".format(mc[1], mc[2], mc[6], mc[7])])
+                if len(tele_msg) > MAX_MESSAGE_LENGTH-1000:
+                    send_tele_msg(tele_msg, receiver_id=receiver_id)
+                    tele_msg = "Lapsed MC List:"
             send_tele_msg(tele_msg, receiver_id=receiver_id)
         
         if len(lapseStatusList) == 0: send_tele_msg("No Status lapses", receiver_id=receiver_id)
