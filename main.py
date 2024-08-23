@@ -432,9 +432,7 @@ def insertConductTracking(conductDate: str, conductName: str, conductColumn: int
 
 def updateConductTracking(receiver_id = None):
     try: 
-        global foundResponse, responseContent
-        foundResponse = False
-        asyncio.get_event_loop().run_until_complete(timetreeResponses())
+        global responseContent
 
         if responseContent is not None: 
             responseContent = json.loads(responseContent) # conversion from str response to a dict
@@ -1171,6 +1169,7 @@ async def checkConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 updateConductUserRequests = dict()
 async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    global foundResponse
     if str(update.effective_user.id) in list(SUPERUSERS.values()):
         try: updateConductUserRequests[str(update.effective_user.id)]
         except KeyError: updateConductUserRequests[str(update.effective_user.id)] = None
@@ -1180,6 +1179,8 @@ async def updateConductHandler(update: Update, context: ContextTypes.DEFAULT_TYP
             if updateConductUserRequests[str(update.effective_user.id)] is None or not updateConductUserRequests[str(update.effective_user.id)].is_alive():
                 masterUserRequests[str(update.effective_user.id)] = time.time()
                 send_tele_msg("Updating conduct tracking...", receiver_id="SUPERUSERS")
+                foundResponse = False
+                asyncio.get_event_loop().run_until_complete(timetreeResponses())
                 t1 = threading.Thread(target=updateConductTracking, args=(str(update.effective_user.id),))
                 t1.start()
                 updateConductUserRequests[str(update.effective_user.id)] = t1
@@ -1728,9 +1729,9 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
-    send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
-    send_tele_msg(ALL_COMMANDS)
-    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.")
+    # send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
+    # send_tele_msg(ALL_COMMANDS)
+    # send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.")
     cetQueue = multiprocessing.Queue()
     mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue,))
     mainCheckMcProcess.start()
