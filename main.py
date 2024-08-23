@@ -1322,9 +1322,11 @@ async def name(update: Update, context: CallbackContext) -> int:
     formattedAllValues = list(zip(*allValues))[5]
     if not context.user_data['checkingName']: userInput = update.message.text
     else: 
-        context.user_data['nameToBeChecked'] = context.user_data['nameToBeChecked'].split(' ')
-        del context.user_data['nameToBeChecked'][0] # remove rank
-        userInput = " ".join(context.user_data['nameToBeChecked'])
+        if isinstance(context.user_data['nameToBeChecked'], list): userInput = update.message.text
+        else:
+            context.user_data['nameToBeChecked'] = context.user_data['nameToBeChecked'].split(' ')
+            del context.user_data['nameToBeChecked'][0] # remove rank
+            userInput = " ".join(context.user_data['nameToBeChecked'])
 
     formatteduserInput = userInput.replace(" ", "").upper()
     allMatches = list()
