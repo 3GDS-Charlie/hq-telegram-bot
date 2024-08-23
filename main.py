@@ -1550,7 +1550,7 @@ async def description(update: Update, context: CallbackContext) -> int:
     if update.message.text != 'No Changes' and not context.user_data['usingPrevIR']:
         context.user_data['description'] = "On {} at about {}hrs, {} {} ".format(context.user_data['date_time'][:6], context.user_data['date_time'][-4:], context.user_data['name'][4], context.user_data['name'][5]) + update.message.text
     elif update.message.text != 'No Changes' and context.user_data['usingPrevIR']:
-        context.user_data['description'] = context.user_data['description'] + update.message.text
+        context.user_data['description'] = context.user_data['description'] + "\n\n" + update.message.text
     await update.message.reply_text("What is the current status?")
     await update.message.reply_text("Refer to the templates below when writing your status:\n\nServiceman is currently making his way to *\\(LOCATION\\)*\\.\n\n*Normal Report Sick*\nServiceman has received *\\(DURATION OF MC\\/STATUS \\+ WHAT MC\\/STATUS\\)* from *\\(START DATE\\)* to *\\(END DATE\\)* inclusive\\.\n\n*Medical Appointments*\nServiceman has completed his appointment\\.\\.\\.\n\n\
 1\\) with no status\\.\n\n\
