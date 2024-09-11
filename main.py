@@ -59,7 +59,7 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
+ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
 
 masterUserRequests = dict()
 rateLimit = 1 # number of seconds between commands per user
@@ -1262,7 +1262,7 @@ async def start(update: Update, context: CallbackContext) -> int:
         reply_keyboard = [['New', 'Update', 'Final']]
         await update.message.reply_text(
             "Is it a new/update/final report ?",
-            reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True),
+            reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
         )
         return CHECK_PREV_IR
     else: 
@@ -1352,7 +1352,7 @@ async def name(update: Update, context: CallbackContext) -> int:
             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
         return CHECK_PES
     if context.user_data['findingName'] or context.user_data['checkingName']: return await location(update, context)
-    await update.message.reply_text("Please provide the date and time of the incident (e.g. 310124 1430):")
+    await update.message.reply_text("Please provide the date and time of the incident (e.g. {}):".format(datetime.now().strftime('%d%m%y %H%M')))
     return DATE_TIME
 
 async def checkPes(update: Update, context: CallbackContext) -> int:
@@ -1364,14 +1364,14 @@ async def checkPes(update: Update, context: CallbackContext) -> int:
             return CHECK_PES
         context.user_data['name'][15] = pes
     if context.user_data['findingName'] or context.user_data['checkingName']: return await location(update, context)
-    await update.message.reply_text("Please provide the date and time of the incident (e.g. 310124 1430):")
+    await update.message.reply_text("Please provide the date and time of the incident (e.g. {}):".format(datetime.now().strftime('%d%m%y %H%M')))
     return DATE_TIME
 
 async def date_time(update: Update, context: CallbackContext) -> int:
     if not context.user_data['findingLocation']:
         userInput = update.message.text.replace(" ", "")
         if len(userInput) != 10:
-            await update.message.reply_text("Unrecognised datetime {}. Please provide another date and time in the format (310124 1430):".format(update.message.text))
+            await update.message.reply_text("Unrecognised datetime {}. Please provide another date and time in the format ({}):".format(update.message.text, datetime.now().strftime('%d%m%y %H%M')))
             return DATE_TIME
         context.user_data['date_time'] = userInput
         if context.user_data['usingPrevIR']: return await location(update, context)
@@ -1432,7 +1432,7 @@ async def location(update: Update, context: CallbackContext) -> int:
             status = None
 
         for line in lines:
-            if not foundNatureOfIncident and line.replace("*", "").replace(" ", "").replace(":", "") == "1)NatureandTypeofIncident":
+            if not foundNatureOfIncident and line.replace("*", "").replace(" ", "").replace(":", "").lower() == "1)natureandtypeofincident":
                 foundNatureOfIncident = True
                 continue
             if not foundNatureOfIncident: continue
@@ -1442,7 +1442,7 @@ async def location(update: Update, context: CallbackContext) -> int:
                 natureOfIncident = line.replace(" Related", "").replace("Related", "")
                 continue
 
-            if not foundName and line.replace("*", "").replace(" ", "").replace(":", "") == "2)DetailsofPersonnelInvolved":
+            if not foundName and line.replace("*", "").replace(" ", "").replace(":", "").lower() == "2)detailsofpersonnelinvolved":
                 foundName = True
                 continue
             if not foundName: continue
@@ -1454,7 +1454,7 @@ async def location(update: Update, context: CallbackContext) -> int:
             context.user_data['checkingName'] = False
             context.user_data['nameToBeChecked'] = None
 
-            if not foundDateTime and line.replace("*", "").replace(" ", "").replace(":", "") == "3)Date&TimeofIncident":
+            if not foundDateTime and line.replace("*", "").replace(" ", "").replace(":", "").lower() == "3)date&timeofincident":
                 foundDateTime = True
                 continue
             if not foundDateTime: continue
@@ -1464,7 +1464,7 @@ async def location(update: Update, context: CallbackContext) -> int:
                 context.user_data['date_time'] = line.replace("/", "").replace(" ", "").replace("hrs", "").replace("hr", "")
                 continue
 
-            if not foundLocation and line.replace("*", "").replace(" ", "").replace(":", "") == "4)LocationofIncident":
+            if not foundLocation and line.replace("*", "").replace(" ", "").replace(":", "").lower() == "4)locationofincident":
                 foundLocation = True
                 continue
             if not foundLocation: continue
@@ -1474,18 +1474,18 @@ async def location(update: Update, context: CallbackContext) -> int:
                 context.user_data['location'] = line
                 continue
                 
-            if not foundDescription and line.replace("*", "").replace(" ", "").replace(":", "") == "5)BriefDescription":
+            if not foundDescription and line.replace("*", "").replace(" ", "").replace(":", "").lower() == "5)briefdescription":
                 foundDescription = True
                 continue
             if not foundDescription: continue
             if line == "": continue
-            if description is None or (not foundStatus and line.replace("*", "").replace(" ", "").replace(":", "") != "6)CurrentStatus"):
+            if description is None or (not foundStatus and line.replace("*", "").replace(" ", "").replace(":", "").lower() != "6)currentstatus"):
                 if description is None: description = line
                 else: description = description + "\n\n" + line
                 context.user_data['description'] = description
                 continue
 
-            if not foundStatus and line.replace("*", "").replace(" ", "").replace(":", "") == "6)CurrentStatus":
+            if not foundStatus and line.replace("*", "").replace(" ", "").replace(":", "").lower() == "6)currentstatus":
                 foundStatus = True
                 continue
             if not foundStatus: continue
@@ -1493,7 +1493,9 @@ async def location(update: Update, context: CallbackContext) -> int:
             status = line
             break
         
-        if natureOfIncident is not None and natureOfIncident in ['Training', 'Non-Training']: context.user_data['training_related'] = natureOfIncident
+        if natureOfIncident is not None and natureOfIncident in ['Training', 'Non-Training', 'Non Training']: 
+            if natureOfIncident == 'Non Training': context.user_data['training_related'] = 'Non-Training'
+            else: context.user_data['training_related'] = natureOfIncident
         else: return await new(update, context)
 
         if name_t is None: 
@@ -1691,6 +1693,11 @@ async def unknownCommand(update: Update, context: CallbackContext) -> None:
         else: await update.message.reply_text(NORMAL_USER_COMMANDS)
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
+async def timeout(update: Update, context: CallbackContext) -> None:
+    if str(update.effective_user.id) in list(CHANNEL_IDS.values()):
+        await update.message.reply_text("Conversation timed out.")
+    else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
+
 def telegram_manager() -> None:
 
     application = Application.builder().token(TELEGRAM_CHANNEL_BOT_TOKEN).build()
@@ -1726,8 +1733,10 @@ def telegram_manager() -> None:
             FOLLOW_UP: [MessageHandler(filters.TEXT & ~filters.COMMAND, follow_up)],
             NOK: [MessageHandler(filters.TEXT & ~filters.COMMAND, nok)],
             REPORTED_BY: [MessageHandler(filters.TEXT & ~filters.COMMAND, reported_by)],
+            ConversationHandler.TIMEOUT: [MessageHandler(filters.TEXT | filters.COMMAND, timeout)],
         },
         fallbacks=[CommandHandler('cancel', cancel_ir)],
+        conversation_timeout=60*5, # 5 minutes
         allow_reentry=True)
 
     # Add the conversation handler
