@@ -59,7 +59,7 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
+ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
 
 masterUserRequests = dict()
 rateLimit = 1 # number of seconds between commands per user
