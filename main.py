@@ -29,8 +29,7 @@ import multiprocessing
 import threading
 MAX_MESSAGE_LENGTH = 4096
 
-# Pytesseract OCR + Super Resolution Libraries
-import pytesseract
+# Image to text detection
 import cv2
 import numpy as np
 from io import BytesIO
@@ -39,6 +38,14 @@ from pdf2image import convert_from_bytes
 import pyheif
 from PIL import Image
 import re
+
+from doctr.models import detection, ocr_predictor
+detection_model = detection.__dict__["db_mobilenet_v3_large"](
+        pretrained=True,
+        bin_thresh=0.3,
+        box_thresh=0.1,
+    )
+model = ocr_predictor(detection_model, "crnn_vgg16_bn", pretrained=True)
 
 # WhatsApp API
 import requests as rq
@@ -762,7 +769,7 @@ def checkMcStatus(receiver_id = None):
                         imageArray = np.asarray(bytearray(file_data.read()), dtype="uint8")
                         img = cv2.imdecode(imageArray, cv2.IMREAD_COLOR)
 
-                    imageText = pytesseract.image_to_string(img)
+                    imageText = model([img]).render()
                     dates_format1 = re.findall(pattern1, imageText)
                     dates_format2 = re.findall(pattern2, imageText)
                     allDates = []
@@ -780,30 +787,6 @@ def checkMcStatus(receiver_id = None):
                         tmp[2] = tmp[2].replace("2024", "24")
                         tmp[2] = tmp[2].replace("2025", "25")
                         allDates.append("".join(tmp))
-                    if len(allDates) < 2: # not enough dates detected. try image processing
-                        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                        img = cv2.GaussianBlur(img, (3, 3), 0)
-                        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
-                        img = cv2.dilate(img, kernel, iterations=1)
-                        img = cv2.erode(img, kernel, iterations=1)
-                        imageText = pytesseract.image_to_string(img)
-                        dates_format1 = re.findall(pattern1, imageText)
-                        dates_format2 = re.findall(pattern2, imageText)
-                        allDates = []
-                        for date in dates_format1:
-                            tmp = date.replace("/", "")
-                            tmp = tmp.replace("2023", "23")
-                            tmp = tmp.replace("2024", "24")
-                            tmp = tmp.replace("2025", "25")
-                            allDates.append(tmp)
-                        for date in dates_format2:
-                            tmp = date.split('-')
-                            try: tmp[1] = monthConversion[tmp[1]]
-                            except KeyError: continue
-                            tmp[2] = tmp[2].replace("2023", "23")
-                            tmp[2] = tmp[2].replace("2024", "24")
-                            tmp[2] = tmp[2].replace("2025", "25")
-                            allDates.append("".join(tmp))
                     if startDate in allDates and endDate in allDates: 
                         foundMcStatusFile = True
                         break
