@@ -1068,8 +1068,8 @@ def main(cetQ):
     weekDay = [1, 2, 3, 4, 5]
     while True:
 
-        # Auto updating of MC Lapses and MAs everyday at 0900
-        if not checkedDailyMcMa and datetime.now().hour == 9 and datetime.now().minute == 0:
+        # Auto updating of MC Lapses and MAs everyday at 0600
+        if not checkedDailyMcMa and datetime.now().hour == 6 and datetime.now().minute == 0:
             send_tele_msg("Checking for MC and Status Lapses. This might take a while.")
             checkMcStatus()
             send_tele_msg("Checking for MAs...")
