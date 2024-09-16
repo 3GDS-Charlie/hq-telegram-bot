@@ -70,13 +70,16 @@ ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
 
 masterUserRequests = dict()
 rateLimit = 1 # number of seconds between commands per user
+
+tmpDutyCmdsDict = dict()
+tmpDutyCmdsList = list()
  
 def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None):
 
     """
-        receiver_id -> SUPERUSERS/NORMALUSERS/ALL/individual ID. None -> Send to everyone
-        parseMode = 'MarkdownV2'
-        replyMarkup for keyboards
+        :param receiver_id (str): SUPERUSERS/NORMALUSERS/ALL/individual ID. None -> Send to everyone
+        :param parseMode (str): MarkdownV2
+        :param replyMarkup: For onscreen keyboards
     """
     if receiver_id is not None and not isinstance(receiver_id, str): receiver_id = str(receiver_id)
     
@@ -932,6 +935,17 @@ def updateWhatsappGrp(cet, receiver_id = None):
     dutyGrpId = DUTY_GRP_ID
     greenAPI = API.GreenAPI(ID_INSTANCE, TOKEN_INSTANCE)
 
+    # remove any outdated temporarily added duty commanders
+    keysToDelete = list()
+    for key, value in tmpDutyCmdsDict.items():
+        if datetime.strptime(key, "%d%m%y").date() < datetime.now().date():
+            keysToDelete.append(key)
+    for key in keysToDelete: del tmpDutyCmdsDict[key]
+    tmpDutyCmds = list()
+    for key, value in tmpDutyCmdsDict.items():
+        for name, number in value:
+            tmpDutyCmds.append(number)
+
     # Getting duty commanders and date and FP timing from CET
     try: 
         cetSegments = cet.split('\n')
@@ -987,7 +1001,7 @@ def updateWhatsappGrp(cet, receiver_id = None):
         allMembers = group_data['participants']
         for member in allMembers:
             memberId = member['id'].split('@c.us')[0][2:]
-            if memberId not in list(PERM_DUTY_CMDS.values()) and memberId not in nextDutyCmds: 
+            if memberId not in list(PERM_DUTY_CMDS.values()) and memberId not in nextDutyCmds and str(memberId) not in tmpDutyCmds: 
                 if ENABLE_WHATSAPP_API: greenAPI.groups.removeGroupParticipant(dutyGrpId, member['id']) 
 
     # Adding new duty members
@@ -1213,6 +1227,115 @@ async def updateDutyGrp(update: Update, context: CallbackContext) -> int:
     t1.start()
     updateDutyGrpUserRequests[str(update.effective_user.id)] = t1
     return ConversationHandler.END
+
+ADD_TMP_MEMBER = 0
+ADD_TMP_DATE = 1
+CONSOLIDATE_TMP_DATE = 2
+
+addtmpmemberUserRequests = dict()
+async def addtmpmember(update: Update, context: CallbackContext) -> int:
+    if str(update.effective_user.id) in list(SUPERUSERS.values()):
+        try: addtmpmemberUserRequests[str(update.effective_user.id)]
+        except KeyError: addtmpmemberUserRequests[str(update.effective_user.id)] = None
+        try: masterUserRequests[str(update.effective_user.id)]
+        except KeyError: masterUserRequests[str(update.effective_user.id)] = None
+        if masterUserRequests[str(update.effective_user.id)] is None or time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
+            if addtmpmemberUserRequests[str(update.effective_user.id)] is None or not addtmpmemberUserRequests[str(update.effective_user.id)].is_alive():
+                masterUserRequests[str(update.effective_user.id)] = time.time()
+                await update.message.reply_text("Send the name of the temporary member to add. Send /cancel to cancel the request at any time.")
+                return ADD_TMP_MEMBER
+            else: 
+                await update.message.reply_text("Please wait for the current request to finish")
+                return ConversationHandler.END
+        else: 
+            await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
+            return ConversationHandler.END
+    elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
+        await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
+        return ConversationHandler.END
+    else: 
+        await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
+        return ConversationHandler.END
+
+async def addmembernames(update: Update, context: CallbackContext) -> int:
+    gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
+    sheet = gc.open("Charlie Nominal Roll")
+    cCoyNominalRollSheet = sheet.worksheet("COMPANY ORBAT")
+    allValues = cCoyNominalRollSheet.get_all_values()
+    formattedAllValues = list(zip(*allValues))[5]
+    userInput = update.message.text
+
+    formatteduserInput = userInput.replace(" ", "").upper()
+    if formatteduserInput == "NO": return await addtmpdate(update, context)
+    allMatches = list()
+    foundPersonnel = False
+    tmpname = None
+    for index, value in enumerate(formattedAllValues, start = 0):
+        if formatteduserInput in value.replace(" ", "").upper():
+            allMatches.append(allValues[index][5])
+            tmpname = allValues[index][5]
+            foundPersonnel = True
+    if not foundPersonnel: 
+        await update.message.reply_text("Unable to find {}. Please provide another name:".format(userInput))
+        return ADD_TMP_MEMBER
+    if len(allMatches) > 1: # more than one match found
+        reply_keyboard = [allMatches]
+        await update.message.reply_text(
+            "Please specify the personnel involved:",
+            reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
+        return ADD_TMP_MEMBER
+    
+    for name, number in PERM_DUTY_CMDS.items():
+        if name in tmpname.replace(" ", "").upper():
+            await update.message.reply_text("{} is already a permanent member of the duty group. Please provide another name:".format(userInput))
+            return ADD_TMP_MEMBER
+    for key, value in tmpDutyCmdsDict.items():
+        for name, number in value:
+            if name == tmpname: 
+                await update.message.reply_text("{} is already a temporary member of the duty group. Please provide another name:".format(userInput))
+                return ADD_TMP_MEMBER
+    for name, number in tmpDutyCmdsList:
+        if name == tmpname: 
+            await update.message.reply_text("{} is already pending temporary member of the duty group. Please provide another name:".format(userInput))
+            return ADD_TMP_MEMBER
+    for name, number in CHARLIE_DUTY_CMDS.items():
+        if name in tmpname.replace(" ", "").upper():
+            tmpDutyCmdsList.append((tmpname, number))
+            reply_keyboard = [['No']]
+            await update.message.reply_text("Send the name of the next member to add. Otherwise send no.", 
+                                            reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
+            return ADD_TMP_MEMBER
+
+async def addtmpdate(update: Update, context: CallbackContext) -> int:
+    await update.message.reply_text("Send the last date (inclusive) to keep the temporary members (e.g. {}):".format(datetime.now().strftime('%d%m%y')))
+    return CONSOLIDATE_TMP_DATE
+
+async def consolidatetmpdate(update: Update, context: CallbackContext) -> int:
+    date = update.message.text
+    try: date_object = datetime.strptime(date, "%d%m%y").date()
+    except Exception as e: 
+        await update.message.reply_text("Unable to interpret {}. Please give another date in the format {}:".format(datetime.now().strftime('%d%m%y')))
+        return CONSOLIDATE_TMP_DATE
+    if date_object >= datetime.now().date():
+        tmpDutyCmdsDict[date] = copy.deepcopy(tmpDutyCmdsList)
+        tmpDutyCmdsList.clear()
+        send_tele_msg("Added {} as temporary duty commanders until {}".format(str([t[0] for t in tmpDutyCmdsDict[date]]).replace("['", "").replace("']", ""), date), receiver_id="SUPERUSERS")
+        return ConversationHandler.END
+    else:
+        await update.message.reply_text("Invalid date: {}. Please give another date in the format {}:".format(datetime.now().strftime('%d%m%y')))
+        return CONSOLIDATE_TMP_DATE
+
+async def cancel_tempmembers(update: Update, context: CallbackContext) -> int:
+    if str(update.effective_user.id) in list(SUPERUSERS.values()):
+        send_tele_msg('Operation cancelled.', receiver_id="SUPERUSERS")
+        tmpDutyCmdsList.clear()
+        return ConversationHandler.END
+    elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
+        await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
+        return ConversationHandler.END
+    else: 
+        await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
+        return ConversationHandler.END
 
 NEW, CHECK_PREV_IR, PREV_IR, TRAINING, NAME, CHECK_PES, DATE_TIME, LOCATION, DESCRIPTION, STATUS, FOLLOW_UP, NOK, REPORTED_BY = range(13)
 
@@ -1700,6 +1823,16 @@ def telegram_manager() -> None:
         fallbacks=[CommandHandler('cancel', cancel_dutygrp)],
     )
 
+    conv_tempmembers_handler = ConversationHandler(
+        entry_points=[CommandHandler('addtmpmember', addtmpmember)],
+        states={
+            ADD_TMP_MEMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, addmembernames)],
+            ADD_TMP_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, addtmpdate)],
+            CONSOLIDATE_TMP_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, consolidatetmpdate)]
+        },
+        fallbacks=[CommandHandler('cancel', cancel_tempmembers)],
+    )
+
     conv__IR_handler = ConversationHandler(
         entry_points=[CommandHandler('generateIR', start)],
         states={
@@ -1725,6 +1858,7 @@ def telegram_manager() -> None:
     # Add the conversation handler
     application.add_handler(conv_dutygrp_handler)
     application.add_handler(conv__IR_handler)
+    application.add_handler(conv_tempmembers_handler)
     application.add_handler(MessageHandler(filters.COMMAND, unknownCommand))
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
