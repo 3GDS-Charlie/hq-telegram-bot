@@ -1324,7 +1324,7 @@ async def consolidatetmpdate(update: Update, context: CallbackContext) -> int:
     if date_object >= datetime.now().date():
         tmpDutyCmdsDict[date] = copy.deepcopy(tmpDutyCmdsList)
         tmpDutyCmdsList.clear()
-        send_tele_msg("Added {} as temporary duty commanders until {}".format(str([t[0] for t in tmpDutyCmdsDict[date]]).replace("['", "").replace("']", ""), date), receiver_id="SUPERUSERS")
+        send_tele_msg("Added {} as temporary duty commanders until {}".format(str([t[0] for t in tmpDutyCmdsDict[date]]).replace("['", "").replace("']", "").replace("'", ""), date), receiver_id="SUPERUSERS")
         return ConversationHandler.END
     else:
         await update.message.reply_text("Invalid date: {}. Please give another date in the format {}:".format(datetime.now().strftime('%d%m%y')))
