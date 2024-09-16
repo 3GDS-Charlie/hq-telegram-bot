@@ -1088,6 +1088,11 @@ def main(cetQ):
             checkMcStatus()
             send_tele_msg("Checking for MAs...")
             autoCheckMA()
+            # Auto sending of temporary duty commanders list if any
+            for date, value in tmpDutyCmdsDict.items():
+                tele_msg = "Temporary duty commanders until {}:\n".format(date)
+                for name, number in value: tele_msg = ", ".join([tele_msg, name])
+                send_tele_msg(tele_msg, receiver_id = "SUPERUSERS")
             checkedDailyMcMa = True
         else: checkedDailyMcMa = False
 
