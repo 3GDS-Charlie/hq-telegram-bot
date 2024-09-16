@@ -20,7 +20,7 @@ from googleapiclient.http import MediaIoBaseDownload
 
 # Telegram API
 import telegram
-from telegram import Update
+from telegram import Update, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackContext, ConversationHandler, MessageHandler, filters
 import asyncio
 import nest_asyncio
@@ -83,6 +83,8 @@ def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None
     """
     if receiver_id is not None and not isinstance(receiver_id, str): receiver_id = str(receiver_id)
     
+    if replyMarkup is None: replyMarkup = ReplyKeyboardRemove()
+
     if receiver_id is None: # send to everyone
         for _, value in CHANNEL_IDS.items():
             asyncio.run(send_telegram_bot_msg(msg, value, parseMode, replyMarkup))
