@@ -1044,6 +1044,8 @@ def autoCheckMA():
         allValues = list(zip(*allValues))
         mAs = allValues[44] # column AS
         names = allValues[43] # column AR
+        platoons = allValues[40] # column AO
+        sections = allValues[41] # column AP
         foundStart = False
         foundMA = False
         pattern = r'\d{6}' # 6 consecutive digits i.e 6 digit date
@@ -1064,7 +1066,7 @@ def autoCheckMA():
             if datetimeObj.day == datetime.now().today().day and datetimeObj.month == datetime.now().today().month and datetimeObj.year == datetime.now().today().year:
                 if names[index] == '': continue
                 foundMA = True
-                tele_msg = "\n".join([tele_msg, "{}\n{}\n".format(names[index], ma)])
+                tele_msg = "\n".join([tele_msg, "{} ".format(names[index]) + ((" (P{}S{})".format(platoons[index], sections[index])) if platoons[index] != "HQ" else (" (HQ)")) + "\n{}\n".format(ma)])
         if foundMA: send_tele_msg(tele_msg)
         else: send_tele_msg("No Medical Appointments today")
             
@@ -1087,10 +1089,14 @@ def main(cetQ, tmpCmdsQ):
             send_tele_msg("Checking for MAs...")
             autoCheckMA()
             # Auto sending of temporary duty commanders list if any
+            tmpDutyCmdsDict = dict()
             while not tmpCmdsQ.empty(): tmpDutyCmdsDict = tmpCmdsQ.get()
             for date, value in tmpDutyCmdsDict.items():
                 tele_msg = "Temporary duty commanders until {}:\n".format(date)
-                for name, number in value: tele_msg = ", ".join([tele_msg, (name if name != "Unknown" else number)])
+                for index, slave in enumerate(value, start = 0): 
+                    name, number = slave
+                    if index == 0: tele_msg = "".join([tele_msg, (name if name != "Unknown" else number)])
+                    else: tele_msg = ", ".join([tele_msg, (name if name != "Unknown" else number)])
                 send_tele_msg(tele_msg, receiver_id = "SUPERUSERS")
             # queue should only hold one list at a time.
             tmpCmdsQ.put(tmpDutyCmdsDict)
