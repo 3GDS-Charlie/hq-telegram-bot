@@ -20,7 +20,7 @@ from googleapiclient.http import MediaIoBaseDownload
 
 # Telegram API
 import telegram
-from telegram import Update, ReplyKeyboardRemove
+from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackContext, ConversationHandler, MessageHandler, filters
 import asyncio
 import nest_asyncio
@@ -82,8 +82,6 @@ def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None
         :param replyMarkup: For onscreen keyboards
     """
     if receiver_id is not None and not isinstance(receiver_id, str): receiver_id = str(receiver_id)
-    
-    if replyMarkup is None: replyMarkup = ReplyKeyboardRemove()
 
     if receiver_id is None: # send to everyone
         for _, value in CHANNEL_IDS.items():
@@ -167,7 +165,7 @@ def insertConductTracking(conductDate: str, conductName: str, conductColumn: int
     conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
 
     startRow = 5
-    endRow = 129
+    endRow = 128
 
     def columnIndexToLetter(index):
         letter = ''
@@ -381,43 +379,43 @@ def insertConductTracking(conductDate: str, conductName: str, conductColumn: int
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 42,
-            "endRowIndex": 43,
+            "startRowIndex": 41,
+            "endRowIndex": 42,
             "startColumnIndex": conductColumn-1,
             "endColumnIndex": conductColumn
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 42,
-            "endRowIndex": 43,
+            "startRowIndex": 41,
+            "endRowIndex": 42,
             "startColumnIndex": conductColumn,
             "endColumnIndex": conductColumn+1
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 67,
-            "endRowIndex": 68,
+            "startRowIndex": 66,
+            "endRowIndex": 67,
             "startColumnIndex": conductColumn-1,
             "endColumnIndex": conductColumn
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 67,
-            "endRowIndex": 68,
+            "startRowIndex": 66,
+            "endRowIndex": 67,
             "startColumnIndex": conductColumn,
             "endColumnIndex": conductColumn+1
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 93,
-            "endRowIndex": 94,
+            "startRowIndex": 92,
+            "endRowIndex": 93,
             "startColumnIndex": conductColumn-1,
             "endColumnIndex": conductColumn
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 93,
-            "endRowIndex": 94,
+            "startRowIndex": 92,
+            "endRowIndex": 93,
             "startColumnIndex": conductColumn,
             "endColumnIndex": conductColumn+1
         }
@@ -1006,7 +1004,7 @@ def updateWhatsappGrp(cet, receiver_id = None):
             if memberId not in list(PERM_DUTY_CMDS.values()) and memberId not in nextDutyCmds and str(memberId) not in tmpDutyCmds: 
                 if ENABLE_WHATSAPP_API: greenAPI.groups.removeGroupParticipant(dutyGrpId, member['id']) 
 
-    # Adding new duty members
+    # Adding new duty members if they are not already inside
     if CDS in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[CDS]))
     if PDS7 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS7]))
     if PDS8 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS8]))
@@ -1074,7 +1072,7 @@ def autoCheckMA():
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
 
-def main(cetQ):
+def main(cetQ, tmpCmdsQ):
 
     charlieY2Id = CHARLIE_Y2_ID
     greenAPI = API.GreenAPI(ID_INSTANCE, TOKEN_INSTANCE)
@@ -1085,16 +1083,19 @@ def main(cetQ):
     while True:
 
         # Auto updating of MC Lapses and MAs everyday at 0600
-        if not checkedDailyMcMa and datetime.now().hour == 6 and datetime.now().minute == 0:
-            send_tele_msg("Checking for MC and Status Lapses. This might take a while.")
-            checkMcStatus()
+        if not checkedDailyMcMa and datetime.now().hour == 7 and datetime.now().minute == 11:
             send_tele_msg("Checking for MAs...")
             autoCheckMA()
             # Auto sending of temporary duty commanders list if any
+            while not tmpCmdsQ.empty(): tmpDutyCmdsDict = tmpCmdsQ.get()
             for date, value in tmpDutyCmdsDict.items():
                 tele_msg = "Temporary duty commanders until {}:\n".format(date)
-                for name, number in value: tele_msg = ", ".join([tele_msg, name])
+                for name, number in value: tele_msg = ", ".join([tele_msg, (name if name != "Unknown" else number)])
                 send_tele_msg(tele_msg, receiver_id = "SUPERUSERS")
+            # queue should only hold one list at a time.
+            tmpCmdsQ.put(tmpDutyCmdsDict)
+            send_tele_msg("Checking for MC and Status Lapses. This might take a while.")
+            checkMcStatus()
             checkedDailyMcMa = True
         else: checkedDailyMcMa = False
 
@@ -1118,7 +1119,7 @@ def main(cetQ):
             # send reminder during weekdays when it hits the FP date and time of sent CET
             if datetime.now().isoweekday() in weekDay and datetime.now().day == int(fpDateTime[0][:2]) and datetime.now().hour == int(fpDateTime[1][:2]) and datetime.now().minute == int(fpDateTime[1][-2:]) and not sentCdsReminder:
                 send_tele_msg("Sending automated CDS reminder", receiver_id="SUPERUSERS")
-                if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated daily reminder for the CDS to send the REPORT SICK PARADE STATE\nhttps://docs.google.com/spreadsheets/d/1y6q2rFUE_dbb-l_Ps3R3mQVSPJT_DB_kDys1uyFeXRg/edit?gid=802597665#gid=802597665")
+                if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated reminder for the CDS to send the REPORT SICK PARADE STATE\nhttps://docs.google.com/spreadsheets/d/1y6q2rFUE_dbb-l_Ps3R3mQVSPJT_DB_kDys1uyFeXRg/edit?gid=802597665#gid=802597665")
                 sentCdsReminder = True
 
         time.sleep(5)
@@ -1127,8 +1128,9 @@ reply_keyboard_all_commands = [["/checkmcstatus", "/checkconduct", "/checkall", 
 NORMAL_USER_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
 \n/generateIR -> Help to generate IR"
 ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
-\n/updatedutygrp -> Update duty group and schedule CDS reminder according to CET\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree\
-\n/generateIR -> Help to generate IR"
+\n/updatedutygrp -> Update duty group and schedule CDS reminder according to CET\n/addtmpmember -> Add temporary duty commanders to duty group\
+\n/resettmpdutycmds -> Reset list of temporary duty commanders\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree\
+\n/generateIR -> IR generator"
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
@@ -1249,7 +1251,7 @@ async def addtmpmember(update: Update, context: CallbackContext) -> int:
         if masterUserRequests[str(update.effective_user.id)] is None or time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
             if addtmpmemberUserRequests[str(update.effective_user.id)] is None or not addtmpmemberUserRequests[str(update.effective_user.id)].is_alive():
                 masterUserRequests[str(update.effective_user.id)] = time.time()
-                await update.message.reply_text("Send the name of the temporary member to add. Send /cancel to cancel the request at any time.")
+                await update.message.reply_text("Send the name/number of the temporary member to add. Send /cancel to cancel the request at any time.")
                 return ADD_TMP_MEMBER
             else: 
                 await update.message.reply_text("Please wait for the current request to finish")
@@ -1265,6 +1267,48 @@ async def addtmpmember(update: Update, context: CallbackContext) -> int:
         return ConversationHandler.END
 
 async def addmembernames(update: Update, context: CallbackContext) -> int:
+
+    try: 
+        int(update.message.text)
+        num_digits = len(update.message.text)
+        if num_digits != 8: 
+            await update.message.reply_text("Invalid number {}. Please provide another name/number:".format(update.message.text))
+            return ADD_TMP_MEMBER
+        
+        gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
+        sheet = gc.open("Charlie Nominal Roll")
+        cCoyNominalRollSheet = sheet.worksheet("COMPANY ORBAT")
+        allValues = cCoyNominalRollSheet.get_all_values()
+        formattedAllValues = list(zip(*allValues))[8] # numbers
+
+        tmpname = "Unknown"
+        for index, value in enumerate(formattedAllValues, start = 0):
+            if value == update.message.text:
+                tmpname = allValues[index][5]
+                break
+        
+        for name, number in PERM_DUTY_CMDS.items():
+            if number == update.message.text:
+                await update.message.reply_text("{} ({}) is already a permanent member of the duty group. Please provide another name/number:".format(tmpname, number))
+                return ADD_TMP_MEMBER
+        for key, value in tmpDutyCmdsDict.items():
+            for name, number in value:
+                if number == update.message.text: 
+                    await update.message.reply_text("{} is already a temporary member of the duty group. Please provide another name/number:".format(name if name != "Unknown" else number))
+                    return ADD_TMP_MEMBER
+        for name, number in tmpDutyCmdsList:
+            if number == update.message.text: 
+                await update.message.reply_text("{} is already a pending temporary member of the duty group. Please provide another name/number:".format(name if name != "Unknown" else number))
+                return ADD_TMP_MEMBER
+        tmpDutyCmdsList.append((tmpname, update.message.text))
+        reply_keyboard = [['No']]
+        await update.message.reply_text("Send the name/number of the next member to add. Otherwise send no.", 
+                                        reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
+        return ADD_TMP_MEMBER
+
+
+    except ValueError: pass
+
     gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
     sheet = gc.open("Charlie Nominal Roll")
     cCoyNominalRollSheet = sheet.worksheet("COMPANY ORBAT")
@@ -1283,7 +1327,7 @@ async def addmembernames(update: Update, context: CallbackContext) -> int:
             tmpname = allValues[index][5]
             foundPersonnel = True
     if not foundPersonnel: 
-        await update.message.reply_text("Unable to find {}. Please provide another name:".format(userInput))
+        await update.message.reply_text("Unable to find {}. Please provide another name/number:".format(userInput))
         return ADD_TMP_MEMBER
     if len(allMatches) > 1: # more than one match found
         reply_keyboard = [allMatches]
@@ -1294,22 +1338,22 @@ async def addmembernames(update: Update, context: CallbackContext) -> int:
     
     for name, number in PERM_DUTY_CMDS.items():
         if name in tmpname.replace(" ", "").upper():
-            await update.message.reply_text("{} is already a permanent member of the duty group. Please provide another name:".format(userInput))
+            await update.message.reply_text("{} is already a permanent member of the duty group. Please provide another name/number".format(userInput))
             return ADD_TMP_MEMBER
     for key, value in tmpDutyCmdsDict.items():
         for name, number in value:
             if name == tmpname: 
-                await update.message.reply_text("{} is already a temporary member of the duty group. Please provide another name:".format(userInput))
+                await update.message.reply_text("{} is already a temporary member of the duty group. Please provide another name/number:".format(userInput))
                 return ADD_TMP_MEMBER
     for name, number in tmpDutyCmdsList:
         if name == tmpname: 
-            await update.message.reply_text("{} is already pending temporary member of the duty group. Please provide another name:".format(userInput))
+            await update.message.reply_text("{} is already pending temporary member of the duty group. Please provide another name/number:".format(userInput))
             return ADD_TMP_MEMBER
     for name, number in CHARLIE_DUTY_CMDS.items():
         if name in tmpname.replace(" ", "").upper():
             tmpDutyCmdsList.append((tmpname, number))
             reply_keyboard = [['No']]
-            await update.message.reply_text("Send the name of the next member to add. Otherwise send no.", 
+            await update.message.reply_text("Send the name/number of the next member to add. Otherwise send no.", 
                                             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
             return ADD_TMP_MEMBER
 
@@ -1321,15 +1365,23 @@ async def consolidatetmpdate(update: Update, context: CallbackContext) -> int:
     date = update.message.text
     try: date_object = datetime.strptime(date, "%d%m%y").date()
     except Exception as e: 
-        await update.message.reply_text("Unable to interpret {}. Please give another date in the format {}:".format(datetime.now().strftime('%d%m%y')))
+        await update.message.reply_text("Unable to interpret {}. Please provide another date in the format {}:".format(date, datetime.now().strftime('%d%m%y')))
         return CONSOLIDATE_TMP_DATE
     if date_object >= datetime.now().date():
         tmpDutyCmdsDict[date] = copy.deepcopy(tmpDutyCmdsList)
+        # adding the temporary members if they are not already inside.
+        dutyGrpId = DUTY_GRP_ID
+        greenAPI = API.GreenAPI(ID_INSTANCE, TOKEN_INSTANCE)
+        for name, number in tmpDutyCmdsList:
+            if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(number))
         tmpDutyCmdsList.clear()
-        send_tele_msg("Added {} as temporary duty commanders until {}".format(str([t[0] for t in tmpDutyCmdsDict[date]]).replace("['", "").replace("']", "").replace("'", ""), date), receiver_id="SUPERUSERS")
+        send_tele_msg("Added {} as temporary duty commanders until {}".format(str([(t[0] if t[0] != "Unknown" else t[1]) for t in tmpDutyCmdsDict[date]]).replace("['", "").replace("']", "").replace("'", ""), date), receiver_id="SUPERUSERS")
+        # flush the queue before adding a new list
+        while not tmpDutyCmdsQueue.empty(): tmpDutyCmdsQueue.get()
+        tmpDutyCmdsQueue.put(tmpDutyCmdsDict)
         return ConversationHandler.END
     else:
-        await update.message.reply_text("Invalid date: {}. Please give another date in the format {}:".format(datetime.now().strftime('%d%m%y')))
+        await update.message.reply_text("Invalid date: {}. Please provide another date:".format(date))
         return CONSOLIDATE_TMP_DATE
 
 async def cancel_tempmembers(update: Update, context: CallbackContext) -> int:
@@ -1343,6 +1395,12 @@ async def cancel_tempmembers(update: Update, context: CallbackContext) -> int:
     else: 
         await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
         return ConversationHandler.END
+
+async def resettmpdutycmds(update: Update, context: CallbackContext) -> int:
+    send_tele_msg("Resetting temporary duty commanders.", receiver_id="SUPERUSERS")
+    tmpDutyCmdsDict.clear()
+    tmpDutyCmdsList.clear()
+    while not tmpDutyCmdsQueue.empty(): tmpDutyCmdsQueue.get()
 
 NEW, CHECK_PREV_IR, PREV_IR, TRAINING, NAME, CHECK_PES, DATE_TIME, LOCATION, DESCRIPTION, STATUS, FOLLOW_UP, NOK, REPORTED_BY = range(13)
 
@@ -1651,14 +1709,14 @@ async def location(update: Update, context: CallbackContext) -> int:
         else:
             await update.message.reply_text("Please write the description following the below text")
             await update.message.reply_text("On {} at about {}hrs, {} {}...".format(context.user_data['date_time'][:6], context.user_data['date_time'][-4:], context.user_data['name'][4], context.user_data['name'][5]))
-            await update.message.reply_text("Refer to the templates below when writing your description:\n\n*Normal Report Sick*\n\\.\\.\\. requested permission from *\\(RANK \\+ NAME\\)* to report sick at *\\(LOCATION\\)* for *\\(REASON\\)*\\.\n\n*Medical Appointment*\n\\.\\.\\. has left *\\(LOCATION\\)* to attend his *\\(TYPE\\)* *\\(medical appointment\\/surgery\\)* at *\\(LOCATION\\)*", parse_mode='MarkdownV2')
+            await update.message.reply_text("Refer to the templates below when writing your description:\n\n*Normal Report Sick*\n\\.\\.\\. requested permission from *\\(RANK \\+ NAME\\)* to report sick at *\\(LOCATION\\)* for *\\(REASON\\)*\\.\n\n*Medical Appointment*\n\\.\\.\\. has left *\\(LOCATION\\)* to attend his medical appointment at *\\(LOCATION\\)* for his *\\(TYPE\\)* *\\(medical appointment\\/surgery\\)*", parse_mode='MarkdownV2')
             return DESCRIPTION
 
     else:
         context.user_data['location'] = update.message.text
         await update.message.reply_text("Please write the description following the below text")
         await update.message.reply_text("On {} at about {}hrs, {} {}...".format(context.user_data['date_time'][:6], context.user_data['date_time'][-4:], context.user_data['name'][4], context.user_data['name'][5]))
-        await update.message.reply_text("Refer to the templates below when writing your description:\n\n*Normal Report Sick*\n\\.\\.\\. requested permission from *\\(RANK \\+ NAME\\)* to report sick at *\\(LOCATION\\)* for *\\(REASON\\)*\\.\n\n*Medical Appointment*\n\\.\\.\\. has left *\\(LOCATION\\)* to attend his *\\(TYPE\\)* *\\(medical appointment\\/surgery\\)* at *\\(LOCATION\\)*", parse_mode='MarkdownV2')
+        await update.message.reply_text("Refer to the templates below when writing your description:\n\n*Normal Report Sick*\n\\.\\.\\. requested permission from *\\(RANK \\+ NAME\\)* to report sick at *\\(LOCATION\\)* for *\\(REASON\\)*\\.\n\n*Medical Appointment*\n\\.\\.\\. has left *\\(LOCATION\\)* to attend his medical appointment at *\\(LOCATION\\)* for his *\\(TYPE\\)* *\\(medical appointment\\/surgery\\)*", parse_mode='MarkdownV2')
         return DESCRIPTION
 
 async def description(update: Update, context: CallbackContext) -> int:
@@ -1820,6 +1878,7 @@ def telegram_manager() -> None:
     application.add_handler(CommandHandler("checkmcstatus", checkMcStatusHandler))
     application.add_handler(CommandHandler("checkconduct", checkConductHandler))
     application.add_handler(CommandHandler("updateconducttracking", updateConductHandler))
+    application.add_handler(CommandHandler("resettmpdutycmds", resettmpdutycmds))
 
     # Add a conversation handler for the new command
     conv_dutygrp_handler = ConversationHandler(
@@ -1876,6 +1935,7 @@ if __name__ == '__main__':
     send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
     send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
     cetQueue = multiprocessing.Queue()
-    mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue,))
+    tmpDutyCmdsQueue = multiprocessing.Queue()
+    mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue, tmpDutyCmdsQueue, ))
     mainCheckMcProcess.start()
     telegram_manager()
