@@ -1083,7 +1083,7 @@ def main(cetQ, tmpCmdsQ):
     while True:
 
         # Auto updating of MC Lapses and MAs everyday at 0600
-        if not checkedDailyMcMa and datetime.now().hour == 7 and datetime.now().minute == 11:
+        if not checkedDailyMcMa and datetime.now().hour == 6 and datetime.now().minute == 0:
             send_tele_msg("Checking for MAs...")
             autoCheckMA()
             # Auto sending of temporary duty commanders list if any
