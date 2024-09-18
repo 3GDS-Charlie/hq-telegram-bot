@@ -1323,7 +1323,7 @@ async def addmembernames(update: Update, context: CallbackContext) -> int:
             for name, number in value:
                 if number == update.message.text: 
                     await update.message.reply_text("{} is already a temporary member of the duty group. Please provide another name/number:".format(name if name != "Unknown" else number))
-                    await update.message.reply_text("If you would like to change how long {} stays as a temporary commander, reset all temporary commanders using /resettmpdutycommanders".format(name if name != "Unknown" else number))
+                    await update.message.reply_text("If you would like to change how long {} stays as a temporary commander, reset all temporary commanders using /resettmpdutycmds".format(name if name != "Unknown" else number))
                     return ADD_TMP_MEMBER
         for name, number in tmpDutyCmdsList:
             if number == update.message.text: 
@@ -1373,7 +1373,7 @@ async def addmembernames(update: Update, context: CallbackContext) -> int:
         for name, number in value:
             if name == tmpname: 
                 await update.message.reply_text("{} is already a temporary member of the duty group. Please provide another name/number:".format(userInput))
-                await update.message.reply_text("If you would like to change how long {} stays as a temporary commander, reset all temporary commanders using /resettmpdutycommanders".format(userInput))
+                await update.message.reply_text("If you would like to change how long {} stays as a temporary commander, reset all temporary commanders using /resettmpdutycmds".format(userInput))
                 return ADD_TMP_MEMBER
     for name, number in tmpDutyCmdsList:
         if name == tmpname: 
