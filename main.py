@@ -1427,10 +1427,18 @@ async def cancel_tempmembers(update: Update, context: CallbackContext) -> int:
         return ConversationHandler.END
 
 async def resettmpdutycmds(update: Update, context: CallbackContext) -> int:
-    send_tele_msg("Resetting temporary duty commanders.", receiver_id="SUPERUSERS")
-    tmpDutyCmdsDict.clear()
-    tmpDutyCmdsList.clear()
-    while not tmpDutyCmdsQueue.empty(): tmpDutyCmdsQueue.get()
+    if str(update.effective_user.id) in list(SUPERUSERS.values()):
+        send_tele_msg("Resetting temporary duty commanders.", receiver_id="SUPERUSERS")
+        tmpDutyCmdsDict.clear()
+        tmpDutyCmdsList.clear()
+        while not tmpDutyCmdsQueue.empty(): tmpDutyCmdsQueue.get()
+        return ConversationHandler.END
+    elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
+        await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
+        return ConversationHandler.END
+    else: 
+        await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
+        return ConversationHandler.END
 
 NEW, CHECK_PREV_IR, PREV_IR, TRAINING, NAME, CHECK_PES, DATE_TIME, LOCATION, DESCRIPTION, STATUS, FOLLOW_UP, NOK, REPORTED_BY = range(13)
 
