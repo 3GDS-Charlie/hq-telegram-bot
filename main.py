@@ -734,6 +734,7 @@ def checkMcStatus(receiver_id = None):
             else: endDate = mcStatus[2]
             pattern1 = r"(?<!\d)(\d{1,2}/\d{1,2}/\d{4})(?!\d)"
             pattern2 = r"(?<!\d)(\d{1,2}-(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)-\d{4})(?!\d)"
+            pattern3 = r"(?<!\d)(\d{1,2} (?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?) \d{4})(?!\d)"
             foundMcStatusFile = False
             for driveMcStatus in driveMcStatusList:
                 tmp = driveMcStatus['createdDate'].split('T')[0].split('-')
@@ -775,6 +776,7 @@ def checkMcStatus(receiver_id = None):
                     imageText = model([img]).render()
                     dates_format1 = re.findall(pattern1, imageText)
                     dates_format2 = re.findall(pattern2, imageText)
+                    dates_format3 = re.findall(pattern3, imageText)
                     allDates = []
                     for date in dates_format1:
                         tmp = date.replace("/", "")
@@ -784,6 +786,14 @@ def checkMcStatus(receiver_id = None):
                         allDates.append(tmp)
                     for date in dates_format2:
                         tmp = date.split('-')
+                        try: tmp[1] = monthConversion[tmp[1]]
+                        except KeyError: continue
+                        tmp[2] = tmp[2].replace("2023", "23")
+                        tmp[2] = tmp[2].replace("2024", "24")
+                        tmp[2] = tmp[2].replace("2025", "25")
+                        allDates.append("".join(tmp))
+                    for date in dates_format3:
+                        tmp = date.split(' ')
                         try: tmp[1] = monthConversion[tmp[1]]
                         except KeyError: continue
                         tmp[2] = tmp[2].replace("2023", "23")
