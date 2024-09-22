@@ -1,4 +1,5 @@
 # General Libraries
+import gc as garbageCollector
 import json
 import time
 import gspread
@@ -45,7 +46,7 @@ detection_model = detection.__dict__["db_mobilenet_v3_large"](
         bin_thresh=0.3,
         box_thresh=0.1,
     )
-model = ocr_predictor(detection_model, "crnn_vgg16_bn", pretrained=True)
+model = ocr_predictor(detection_model, "crnn_vgg16_bn", pretrained=True, straighten_pages=True)
 
 # WhatsApp API
 import requests as rq
@@ -61,7 +62,7 @@ responseContent = None
 # Telegram Channel
 telegram_bot = telegram.Bot(token=TELEGRAM_CHANNEL_BOT_TOKEN)
 
-monthConversion = {"Jan":"01", "January":"01", "Feb":"02", "February":"02", "Mar":"03", "March":"03", "Apr":"04", "April":"04", "May":"05", "Jun":"06", "June":"06", "Jul":"07", "July":"07", "Aug":"08", "August":"08", "Sep":"09", "September":"09", "Oct":"10", "October":"10", "Nov":"11", "November":"11", "Dec":"12", "December":"12"} 
+monthConversion = {'January': '01', 'Jan': '01', 'February': '02', 'Feb': '02', 'March': '03', 'Mar': '03', 'April': '04', 'Apr': '04', 'May': '05', 'June': '06', 'Jun': '06', 'July': '07', 'Jul': '07', 'August': '08', 'Aug': '08', 'September': '09', 'Sep': '09', 'October': '10', 'Oct': '10', 'November': '11', 'Nov': '11', 'December': '12', 'Dec': '12'}
 trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
@@ -614,7 +615,7 @@ def checkMcStatus(receiver_id = None):
             if not foundHeader and name == 'NAME': 
                 foundHeader = True
                 continue
-            if foundHeader and name != '' and mcStartDates[index] != '#REF!' and mcEndDates[index] != '#REF!' and mcReason[index] != '#REF!': 
+            if foundHeader and name != '' and mcStartDates[index] != '#REF!' and mcStartDates[index] != '' and mcEndDates[index] != '#REF!' and mcEndDates[index] != '' and mcReason[index] != '#REF!' and mcReason[index] != '': 
                 mcList.append((name, mcStartDates[index], (mcEndDates[index] if mcEndDates[index] != '' else '-'), platoonMc[index], sectionMc[index], "MC", mcReason[index]))
         foundHeader = False
         statusList = []
@@ -622,12 +623,8 @@ def checkMcStatus(receiver_id = None):
             if not foundHeader and name == 'NAME': 
                 foundHeader = True
                 continue
-            if foundHeader and name != '' and statusStartDates[index] != '#REF!' and statusEndDates[index] != '#REF!' and statusReason[index] != '#REF!': 
+            if foundHeader and name != '' and statusStartDates[index] != '#REF!' and statusStartDates[index] != '' and statusEndDates[index] != '#REF!' and statusEndDates[index] != '' and statusReason[index] != '#REF!' and statusReason[index] != '': 
                 statusList.append((name, statusStartDates[index], (statusEndDates[index] if statusEndDates[index] != '' else '-'), platoonStatus[index], sectionStatus[index], "Status", statusReason[index]))
-        
-        paradeStateMcList = copy.deepcopy(mcList)
-        paradeStateMasterList = copy.deepcopy(statusList)
-        paradeStateMasterList.extend(paradeStateMcList)
 
         # read existing MC/Status entries from mc lapse sheet
         mcStatusLapseSheet = gc.open("MC/Status Lapse Tracking")
@@ -705,6 +702,7 @@ def checkMcStatus(receiver_id = None):
         possibleMcList = []
         possibleStatusList = []
         foundMcStatusFiles = []
+        combinedPattern = r"from\s*(\d{1,2}/\d{1,2}/\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))\s*to\s*(\d{1,2}/\d{1,2}/\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))"
         for count, mcStatus in enumerate(masterList, start = 1):
             rank = mcStatus[0].split(' ')[0]
             folderName = mcStatus[0].replace(rank + " ", "") # remove rank from name
@@ -732,9 +730,6 @@ def checkMcStatus(receiver_id = None):
                     raise IndexError
                 endDate = ''.join(tmp)
             else: endDate = mcStatus[2]
-            pattern1 = r"(?<!\d)(\d{1,2}/\d{1,2}/\d{4})(?!\d)"
-            pattern2 = r"(?<!\d)(\d{1,2}-(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)-\d{4})(?!\d)"
-            pattern3 = r"(?<!\d)(\d{1,2} (?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?) \d{4})(?!\d)"
             foundMcStatusFile = False
             for driveMcStatus in driveMcStatusList:
                 tmp = driveMcStatus['createdDate'].split('T')[0].split('-')
@@ -750,13 +745,13 @@ def checkMcStatus(receiver_id = None):
                     imageIo = io.BytesIO()
                     downloader = MediaIoBaseDownload(imageIo, request)
                     done = False
-                    while done is False:
-                        status, done = downloader.next_chunk()
+                    while done is False: status, done = downloader.next_chunk()
                     imageIo.seek(0)
                     if driveMcStatus['fileExtension'].upper() == 'PDF': # PDF Formats
-                        images = convert_from_bytes(imageIo.read())
+                        images = convert_from_bytes(imageIo.read(), first_page=0, last_page=1)
                         pil_image = images[0]  # Convert the first page only
                         img = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+                        del images
                     elif driveMcStatus['fileExtension'].upper() == 'HEIC': # HEIC Formats
                         heif_file = pyheif.read(imageIo.read())
                         image = Image.frombytes(
@@ -768,55 +763,101 @@ def checkMcStatus(receiver_id = None):
                             heif_file.stride,
                         )
                         img = np.array(image) # Ensure it's in RGB mode
+                        del heif_file, image
                     else: #jpg/jpeg formats
                         file_data = BytesIO(request.execute())
                         imageArray = np.asarray(bytearray(file_data.read()), dtype="uint8")
                         img = cv2.imdecode(imageArray, cv2.IMREAD_COLOR)
+                        del file_data, imageArray
+                    imageText = model([img]).render().replace("\n", "").replace(" ", "")
+                    matches = re.findall(combinedPattern, imageText)
+                    allDates = list()
+                    if matches:
+                        for match in matches:
+                            start_date = match[2] or match[1] or match[0]
+                            end_date = match[5] or match[4] or match[3]
+                            if start_date == match[1] or start_date == match[2]:
+                                tmp = start_date.split('-')
+                                if len(tmp) == 1: # date does not have hyphens
+                                    slave = list()
+                                    for month, number in monthConversion.items():
+                                        matchingMonth = re.findall(month, start_date)
+                                        if len(matchingMonth) != 0: # found corresponding month
+                                            slave = start_date.split(matchingMonth[0])
+                                            slave.insert(1, monthConversion[matchingMonth[0]])
+                                            slave[2] = slave[2].replace("2023", "23")
+                                            slave[2] = slave[2].replace("2024", "24")
+                                            slave[2] = slave[2].replace("2025", "25")
+                                            start_date = "".join(slave)
+                                            break
+                                else:
+                                    try: tmp[1] = monthConversion[tmp[1]]
+                                    except KeyError: continue
+                                    tmp[2] = tmp[2].replace("2023", "23")
+                                    tmp[2] = tmp[2].replace("2024", "24")
+                                    tmp[2] = tmp[2].replace("2025", "25")
+                                    start_date = "".join(tmp)
+                            elif start_date == match[0]: 
+                                tmp = start_date.replace("/", "")
+                                tmp = tmp.replace("2023", "23")
+                                tmp = tmp.replace("2024", "24")
+                                tmp = tmp.replace("2025", "25")
+                                start_date = tmp
 
-                    imageText = model([img]).render()
-                    dates_format1 = re.findall(pattern1, imageText)
-                    dates_format2 = re.findall(pattern2, imageText)
-                    dates_format3 = re.findall(pattern3, imageText)
-                    allDates = []
-                    for date in dates_format1:
-                        tmp = date.replace("/", "")
-                        tmp = tmp.replace("2023", "23")
-                        tmp = tmp.replace("2024", "24")
-                        tmp = tmp.replace("2025", "25")
-                        allDates.append(tmp)
-                    for date in dates_format2:
-                        tmp = date.split('-')
-                        try: tmp[1] = monthConversion[tmp[1]]
-                        except KeyError: continue
-                        tmp[2] = tmp[2].replace("2023", "23")
-                        tmp[2] = tmp[2].replace("2024", "24")
-                        tmp[2] = tmp[2].replace("2025", "25")
-                        allDates.append("".join(tmp))
-                    for date in dates_format3:
-                        tmp = date.split(' ')
-                        try: tmp[1] = monthConversion[tmp[1]]
-                        except KeyError: continue
-                        tmp[2] = tmp[2].replace("2023", "23")
-                        tmp[2] = tmp[2].replace("2024", "24")
-                        tmp[2] = tmp[2].replace("2025", "25")
-                        allDates.append("".join(tmp))
-                    if startDate in allDates and endDate in allDates: 
+                            if end_date == match[4] or end_date == match[5]:
+                                tmp = end_date.split('-')
+                                if len(tmp) == 1: # date does not have hyphens
+                                    slave = list()
+                                    for month, number in monthConversion.items():
+                                        matchingMonth = re.findall(month, end_date)
+                                        if len(matchingMonth) != 0: # found corresponding month
+                                            slave = end_date.split(matchingMonth[0])
+                                            slave.insert(1, monthConversion[matchingMonth[0]])
+                                            slave[2] = slave[2].replace("2023", "23")
+                                            slave[2] = slave[2].replace("2024", "24")
+                                            slave[2] = slave[2].replace("2025", "25")
+                                            end_date = "".join(slave)
+                                            break
+                                else:
+                                    try: tmp[1] = monthConversion[tmp[1]]
+                                    except KeyError: continue
+                                    tmp[2] = tmp[2].replace("2023", "23")
+                                    tmp[2] = tmp[2].replace("2024", "24")
+                                    tmp[2] = tmp[2].replace("2025", "25")
+                                    end_date = "".join(tmp)
+                            elif end_date == match[3]: 
+                                tmp = end_date.replace("/", "")
+                                tmp = tmp.replace("2023", "23")
+                                tmp = tmp.replace("2024", "24")
+                                tmp = tmp.replace("2025", "25")
+                                end_date = tmp
+                            allDates.append((start_date, end_date))
+                    if (startDate, endDate) in allDates: 
                         foundMcStatusFile = True
+                        # renaming MC file to include date
+                        fileID = driveMcStatus['id']
+                        newName = "{}-{}.{}".format(startDate, endDate, driveMcStatus['fileExtension'])
+                        updated_file = service.files().update(
+                            fileId=fileID,
+                            body={'name': newName},
+                            fields='id, name'
+                        ).execute()
                         break
                     else: 
-                        if mcStatus[5] == "MC": possibleMcList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
-                        elif mcStatus[5] == "Status": possibleStatusList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
-
+                        if mcStatus[5] == "MC" and (mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)) not in possibleMcList: possibleMcList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
+                        elif mcStatus[5] == "Status" and (mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)) not in possibleStatusList: possibleStatusList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
+                    del imageText, img
+                    garbageCollector.collect()
             if not foundMcStatusFile: 
                 if mcStatus[5] == "MC": lapseMcList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId))) 
                 elif mcStatus[5] == "Status": lapseStatusList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
 
-            else: foundMcStatusFiles.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
+            else: foundMcStatusFiles.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId))) 
 
             timeElapsed = time.time()-startTm
             if timeElapsed > 120: # 2 minutes
                 send_tele_msg("Current progress: {:.1f}%".format((count/len(masterList))*100), receiver_id=receiver_id)
-                startTm = time.time() 
+                startTm = time.time()
 
         # write lapsed mc/status list to mc/status lapse tracking sheet
         mcLapse.batch_clear(['A2:G1000'])
@@ -870,7 +911,6 @@ def checkMcStatus(receiver_id = None):
                                           gspread.cell.Cell(index, 6, status[5]),
                                           gspread.cell.Cell(index, 7, status[6]),
                                           gspread.cell.Cell(index, 8, status[7])])
-
     except Exception as e:
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
@@ -940,11 +980,13 @@ def checkConductTracking(receiver_id = None):
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
 
-def updateWhatsappGrp(cet, receiver_id = None):
+def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
     
     dutyGrpId = DUTY_GRP_ID
     greenAPI = API.GreenAPI(ID_INSTANCE, TOKEN_INSTANCE)
 
+    tmpDutyCmdsDict = dict()
+    while not tmpCmdsQ.empty(): tmpDutyCmdsDict = tmpCmdsQ.get()
     # remove any outdated temporarily added duty commanders
     keysToDelete = list()
     for key, value in tmpDutyCmdsDict.items():
@@ -955,6 +997,8 @@ def updateWhatsappGrp(cet, receiver_id = None):
     for key, value in tmpDutyCmdsDict.items():
         for name, number in value:
             tmpDutyCmds.append(number)
+    # queue should only hold one list at a time.
+    tmpCmdsQ.put(tmpDutyCmdsDict)
 
     # Getting duty commanders and date and FP timing from CET
     try: 
@@ -1098,9 +1142,16 @@ def main(cetQ, tmpCmdsQ):
         if not checkedDailyMcMa and datetime.now().hour == 6 and datetime.now().minute == 0:
             send_tele_msg("Checking for MAs...")
             autoCheckMA()
+
             # Auto sending of temporary duty commanders list if any
             tmpDutyCmdsDict = dict()
             while not tmpCmdsQ.empty(): tmpDutyCmdsDict = tmpCmdsQ.get()
+            # remove any outdated temporarily added duty commanders
+            keysToDelete = list()
+            for key, value in tmpDutyCmdsDict.items():
+                if datetime.strptime(key, "%d%m%y").date() < datetime.now().date():
+                    keysToDelete.append(key)
+            for key in keysToDelete: del tmpDutyCmdsDict[key]
             for date, value in tmpDutyCmdsDict.items():
                 tele_msg = "Temporary duty commanders until {}:\n".format(date)
                 for index, slave in enumerate(value, start = 0): 
@@ -1248,7 +1299,7 @@ async def updateCet(update: Update, context: CallbackContext) -> int:
     
 async def updateDutyGrp(update: Update, context: CallbackContext) -> int:
     cet = update.message.text
-    t1 = threading.Thread(target=updateWhatsappGrp, args=(cet, str(update.effective_user.id),))
+    t1 = threading.Thread(target=updateWhatsappGrp, args=(cet, tmpDutyCmdsQueue, str(update.effective_user.id),))
     t1.start()
     updateDutyGrpUserRequests[str(update.effective_user.id)] = t1
     return ConversationHandler.END
@@ -1268,16 +1319,22 @@ async def addtmpmember(update: Update, context: CallbackContext) -> int:
             if addtmpmemberUserRequests[str(update.effective_user.id)] is None or not addtmpmemberUserRequests[str(update.effective_user.id)].is_alive():
                 masterUserRequests[str(update.effective_user.id)] = time.time()
                 await update.message.reply_text("Send the name/number of the temporary member to add. Send /cancel to cancel the request at any time.")
-                # Sending of temporary duty commanders list if any
+                # Auto sending of temporary duty commanders list if any
                 tmpDutyCmdsDict = dict()
                 while not tmpDutyCmdsQueue.empty(): tmpDutyCmdsDict = tmpDutyCmdsQueue.get()
+                # remove any outdated temporarily added duty commanders
+                keysToDelete = list()
+                for key, value in tmpDutyCmdsDict.items():
+                    if datetime.strptime(key, "%d%m%y").date() < datetime.now().date():
+                        keysToDelete.append(key)
+                for key in keysToDelete: del tmpDutyCmdsDict[key]
                 for date, value in tmpDutyCmdsDict.items():
                     tele_msg = "Temporary duty commanders until {}:\n".format(date)
                     for index, slave in enumerate(value, start = 0): 
                         name, number = slave
                         if index == 0: tele_msg = "".join([tele_msg, (name if name != "Unknown" else number)])
                         else: tele_msg = ", ".join([tele_msg, (name if name != "Unknown" else number)])
-                    send_tele_msg(tele_msg, receiver_id = str(update.effective_user.id))
+                    send_tele_msg(tele_msg, receiver_id = "SUPERUSERS")
                 # queue should only hold one list at a time.
                 tmpDutyCmdsQueue.put(tmpDutyCmdsDict)
                 return ADD_TMP_MEMBER
@@ -1398,14 +1455,15 @@ async def consolidatetmpdate(update: Update, context: CallbackContext) -> int:
         await update.message.reply_text("Unable to interpret {}. Please provide another date in the format {}:".format(date, datetime.now().strftime('%d%m%y')))
         return CONSOLIDATE_TMP_DATE
     if date_object >= datetime.now().date():
-        tmpDutyCmdsDict[date] = copy.deepcopy(tmpDutyCmdsList)
-        # adding the temporary members if they are not already inside.
+        try: tmpDutyCmdsDict[date].extend(copy.deepcopy(tmpDutyCmdsList))
+        except KeyError: tmpDutyCmdsDict[date] = copy.deepcopy(tmpDutyCmdsList)
+        # adding the temporary members to whatsapp group if they are not already inside.
         dutyGrpId = DUTY_GRP_ID
         greenAPI = API.GreenAPI(ID_INSTANCE, TOKEN_INSTANCE)
         for name, number in tmpDutyCmdsList:
             if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(number))
+        send_tele_msg("Added {} as temporary duty commanders until {}".format(str([(t[0] if t[0] != "Unknown" else t[1]) for t in tmpDutyCmdsList]).replace("['", "").replace("']", "").replace("'", ""), date), receiver_id="SUPERUSERS")
         tmpDutyCmdsList.clear()
-        send_tele_msg("Added {} as temporary duty commanders until {}".format(str([(t[0] if t[0] != "Unknown" else t[1]) for t in tmpDutyCmdsDict[date]]).replace("['", "").replace("']", "").replace("'", ""), date), receiver_id="SUPERUSERS")
         # flush the queue before adding a new list
         while not tmpDutyCmdsQueue.empty(): tmpDutyCmdsQueue.get()
         tmpDutyCmdsQueue.put(tmpDutyCmdsDict)
