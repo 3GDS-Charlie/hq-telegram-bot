@@ -1,4 +1,5 @@
 # General Libraries
+import csv
 import gc as garbageCollector
 import json
 import time
@@ -6,7 +7,7 @@ import gspread
 import platform
 from gspread_formatting import *
 from datetime import datetime, timedelta
-from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS, SUPERUSERS, DUTY_GRP_ID, CHARLIE_Y2_ID, ID_INSTANCE, TOKEN_INSTANCE, CHARLIE_DUTY_CMDS, PERM_DUTY_CMDS, TIMETREE_USERNAME, TIMETREE_PASSWORD, TIMETREE_CALENDAR_ID
+from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS, SUPERUSERS, DUTY_GRP_ID, CHARLIE_Y2_ID, WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE, SUPABASE_URL, SUPABASE_KEY, SUPBASE_BACKUP_DRIVE_ID, CHARLIE_DUTY_CMDS, PERM_DUTY_CMDS, TIMETREE_USERNAME, TIMETREE_PASSWORD, TIMETREE_CALENDAR_ID
 import traceback
 import copy
 
@@ -52,9 +53,12 @@ model = ocr_predictor(detection_model, "crnn_vgg16_bn", pretrained=True, straigh
 import requests as rq
 from whatsapp_api_client_python import API
 
+# Supabase API
+from supabase import create_client, Client
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 # Intercepting TimeTree Responses
-from pyppeteer import launch
-from pyppeteer.errors import TimeoutError
+from playwright.async_api import async_playwright
 from zoneinfo import ZoneInfo
 foundResponse = False # Timetree response interception
 responseContent = None
@@ -117,33 +121,38 @@ async def intercept_response(response):
 
 async def timetreeResponses():
     global foundResponse
-    if platform.system() == "Darwin": # macOS
-        browser = await launch(headless=True)
-    elif platform.system() == "Linux": # ubuntu
-        # custom exec as oracle cloud uses ARM ubuntu
-        # custom user data dir due to permission issues for default location 
-        # headless mode does not work on oracle cloud linux for some reason       
-        browser = await launch(headless=False, executablePath='/snap/bin/chromium', userDataDir='/home/pyppeteer')
-    # Incognito to force login to be able to intercept
-    context = await browser.createIncognitoBrowserContext()
-    page = await context.newPage()
-    
-    # Intercept network responses
-    page.on('response', lambda response: asyncio.ensure_future(intercept_response(response)))
+    async with async_playwright() as playwright:
+        
+        browser = await playwright.chromium.launch(headless=True)
+        
+        # Create incognito context
+        context = await browser.new_context()
+        page = await context.new_page()
 
-    await page.goto('https://timetreeapp.com/signin?locale=en', timeout=10000)
-    try:
-        await page.waitForSelector('input[name="email"]', timeout=10000)
-        await page.type('input[name="email"]', TIMETREE_USERNAME)
-        await page.waitForSelector('input[name="password"]', timeout=10000)
-        await page.type('input[name="password"]', TIMETREE_PASSWORD)
-        await page.waitForSelector('button[type="submit"]', timeout=10000)
-        await page.click('button[type="submit"]')
-        await page.waitForNavigation(timeout=10000)
-    except TimeoutError as e: print(f"Error: {e}")
-    
-    while not foundResponse: await asyncio.sleep(1)
-    await browser.close()
+        # Intercept network responses
+        page.on("response", intercept_response)
+
+        # Navigate to the sign-in page
+        await page.goto('https://timetreeapp.com/signin?locale=en', timeout=10000)
+
+        try:
+            # Log in by filling in the credentials
+            await page.wait_for_selector('input[name="email"]', timeout=10000)
+            await page.fill('input[name="email"]', TIMETREE_USERNAME)
+            await page.wait_for_selector('input[name="password"]', timeout=10000)
+            await page.fill('input[name="password"]', TIMETREE_PASSWORD)
+            await page.wait_for_selector('button[type="submit"]', timeout=10000)
+            await page.click('button[type="submit"]')
+            await page.wait_for_load_state(timeout=10000)
+        except Exception as e:
+            print(f"Error: {e}")
+
+        # Wait for the desired response
+        while not foundResponse:
+            await asyncio.sleep(1)
+
+        # Close the browser
+        await browser.close()
 
 def convertTimestampToDatetime(timestamp, tzinfo=ZoneInfo("Asia/Singapore")):
     
@@ -983,7 +992,7 @@ def checkConductTracking(receiver_id = None):
 def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
     
     dutyGrpId = DUTY_GRP_ID
-    greenAPI = API.GreenAPI(ID_INSTANCE, TOKEN_INSTANCE)
+    greenAPI = API.GreenAPI(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
 
     tmpDutyCmdsDict = dict()
     while not tmpCmdsQ.empty(): tmpDutyCmdsDict = tmpCmdsQ.get()
@@ -1032,7 +1041,7 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
     if ENABLE_WHATSAPP_API: greenAPI.groups.updateGroupName(dutyGrpId, "{} DUTY CDS/PDS".format(newDate))
         
     # Removal of previous duty members not in next duty 
-    url = "https://api.green-api.com/waInstance{}/getGroupData/{}".format(ID_INSTANCE, TOKEN_INSTANCE)
+    url = "https://api.green-api.com/waInstance{}/getGroupData/{}".format(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
     payload = {
         "groupId": dutyGrpId  
     }
@@ -1068,7 +1077,7 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
     if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(dutyGrpId, cet)
 
     # Checking whether all members were added successfully
-    url = "https://api.green-api.com/waInstance{}/getGroupData/{}".format(ID_INSTANCE, TOKEN_INSTANCE)
+    url = "https://api.green-api.com/waInstance{}/getGroupData/{}".format(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
     payload = {
         "groupId": dutyGrpId  
     }
@@ -1131,10 +1140,11 @@ def autoCheckMA():
 def main(cetQ, tmpCmdsQ):
 
     charlieY2Id = CHARLIE_Y2_ID
-    greenAPI = API.GreenAPI(ID_INSTANCE, TOKEN_INSTANCE)
+    greenAPI = API.GreenAPI(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
     fpDateTime = None
     sentCdsReminder = False
     checkedDailyMcMa = False
+    backedupSupabase = False
     weekDay = [1, 2, 3, 4, 5]
     while True:
 
@@ -1164,7 +1174,7 @@ def main(cetQ, tmpCmdsQ):
             send_tele_msg("Checking for MC and Status Lapses. This might take a while.")
             checkMcStatus()
             checkedDailyMcMa = True
-        else: checkedDailyMcMa = False
+        elif datetime.now().hour == 6 and datetime.now().minute != 0: checkedDailyMcMa = False
 
         try: # Auto reminding of CDS to send report sick parade state every morning 
             while not cetQ.empty(): 
@@ -1188,6 +1198,32 @@ def main(cetQ, tmpCmdsQ):
                 send_tele_msg("Sending automated CDS reminder", receiver_id="SUPERUSERS")
                 if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated reminder for the CDS to send the REPORT SICK PARADE STATE\nhttps://docs.google.com/spreadsheets/d/1y6q2rFUE_dbb-l_Ps3R3mQVSPJT_DB_kDys1uyFeXRg/edit?gid=802597665#gid=802597665")
                 sentCdsReminder = True
+
+        # Monthly backup of supabase nominal roll
+        if not backedupSupabase and datetime.now().day == 1:
+            send_tele_msg("Backing up Charlie Nominal Roll from Supabase onto Google Drive...", receiver_id="SUPERUSERS")
+            response = supabase.table("profiles").select("*").execute()
+            response = response.json()
+            response = response.replace('rank', 'Rank').replace('name', 'Name').replace('platoon', 'Platoon').replace('section', 'Section').replace('email', 'Email').replace('contact', 'Contact').replace('appointment', 'Appointment').replace('duty_points', 'Duty points').replace('ration', 'Ration').replace('shirt_size', 'Shirt Size').replace('pants_size', 'Pants Size')
+            data = json.loads(response)
+            data = data['data']
+            field_order = ['id', 'Rank', 'Name', 'Platoon', 'Section', 'Email', 'Contact', 'Appointment', 'Duty points', 'Ration', 'Shirt Size', 'Pants Size']  # Custom order
+            data = [{k: v for k, v in row.items() if k in field_order} for row in data]
+            csv_data = io.StringIO()
+            writer = csv.DictWriter(csv_data, fieldnames=field_order)
+            writer.writeheader()
+            writer.writerows(data)
+            csv_data.seek(0)
+            gauth = GoogleAuth()
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/drive'])
+            service = build('drive', 'v3', credentials=creds)
+            gauth.credentials = creds
+            drive = GoogleDrive(gauth)
+            file = drive.CreateFile({'title': 'Charlie Nominal Roll {}.csv'.format(datetime.now().date()), 'parents': [{'id': SUPBASE_BACKUP_DRIVE_ID}], 'mimeType': 'text/csv'}) 
+            file.SetContentString(csv_data.getvalue())
+            file.Upload()
+            backedupSupabase = True
+        elif datetime.now().day != 1: backedupSupabase = False
 
         time.sleep(5)
 
@@ -1459,7 +1495,7 @@ async def consolidatetmpdate(update: Update, context: CallbackContext) -> int:
         except KeyError: tmpDutyCmdsDict[date] = copy.deepcopy(tmpDutyCmdsList)
         # adding the temporary members to whatsapp group if they are not already inside.
         dutyGrpId = DUTY_GRP_ID
-        greenAPI = API.GreenAPI(ID_INSTANCE, TOKEN_INSTANCE)
+        greenAPI = API.GreenAPI(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
         for name, number in tmpDutyCmdsList:
             if ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(number))
         send_tele_msg("Added {} as temporary duty commanders until {}".format(str([(t[0] if t[0] != "Unknown" else t[1]) for t in tmpDutyCmdsList]).replace("['", "").replace("']", "").replace("'", ""), date), receiver_id="SUPERUSERS")
