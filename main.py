@@ -1494,14 +1494,15 @@ async def addmembernames(update: Update, context: CallbackContext) -> int:
     tmpname = None
     for index, value in enumerate(formattedAllValues, start = 0):
         if formatteduserInput in value.replace(" ", "").upper():
-            allMatches.append(allValues[index][5])
+            allMatches.append((allValues[index][5], allValues[index][8]))
             tmpname = allValues[index][5]
+            tmpnum = allValues[index][8]
             foundPersonnel = True
     if not foundPersonnel: 
         await update.message.reply_text("Unable to find {}. Please provide another name/number:".format(userInput))
         return ADD_TMP_MEMBER
     if len(allMatches) > 1: # more than one match found
-        reply_keyboard = [allMatches]
+        reply_keyboard = [name[0] for name in allMatches]
         await update.message.reply_text(
             "Please specify the personnel involved:",
             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
@@ -1521,8 +1522,8 @@ async def addmembernames(update: Update, context: CallbackContext) -> int:
         if name == tmpname: 
             await update.message.reply_text("{} is already pending temporary member of the duty group. Please provide another name/number:".format(userInput))
             return ADD_TMP_MEMBER
-        
-    tmpDutyCmdsList.append((tmpname, number))
+    
+    tmpDutyCmdsList.append((tmpname, tmpnum))
     reply_keyboard = [['No']]
     await update.message.reply_text("Send the name/number of the next member to add. Otherwise send no.", 
                                     reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
