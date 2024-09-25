@@ -1157,6 +1157,56 @@ def autoCheckMA():
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
 
+def backup_charlie_nominal_roll():
+    try:
+        send_tele_msg("Backing up Charlie Nominal Roll from Supabase onto Google Drive...", receiver_id="SUPERUSERS")
+        response = supabase.table("profiles").select("*").execute()
+        response = response.json()
+        response = response.replace('rank', 'Rank').replace('name', 'Name').replace('platoon', 'Platoon').replace('section', 'Section').replace('email', 'Email').replace('contact', 'Contact').replace('appointment', 'Appointment').replace('duty_points', 'Duty points').replace('ration', 'Ration').replace('shirt_size', 'Shirt Size').replace('pants_size', 'Pants Size')
+        data = json.loads(response)
+        data = data['data']
+        field_order = ['id', 'Rank', 'Name', 'Platoon', 'Section', 'Email', 'Contact', 'Appointment', 'Duty points', 'Ration', 'Shirt Size', 'Pants Size']  # Custom order
+        data = [{k: v for k, v in row.items() if k in field_order} for row in data]
+        csv_data = io.StringIO()
+        writer = csv.DictWriter(csv_data, fieldnames=field_order)
+        writer.writeheader()
+        writer.writerows(data)
+        csv_data.seek(0)
+        gauth = GoogleAuth()
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/drive'])
+        service = build('drive', 'v3', credentials=creds)
+        gauth.credentials = creds
+        drive = GoogleDrive(gauth)
+        file = drive.CreateFile({'title': 'Charlie Nominal Roll {}.csv'.format(datetime.now().date()), 'parents': [{'id': SUPBASE_BACKUP_DRIVE_ID}], 'mimeType': 'text/csv'}) 
+        file.SetContentString(csv_data.getvalue())
+        file.Upload()
+        send_tele_msg("Done", receiver_id="SUPERUSERS")
+    except Exception as e:
+        send_tele_msg("Encountered exception trying to backup charlie nominal roll from supabase: {}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
+
+async def backupcharlienominalroll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if str(update.effective_user.id) in list(SUPERUSERS.values()):
+        try: updateDutyGrpUserRequests[str(update.effective_user.id)]
+        except KeyError: updateDutyGrpUserRequests[str(update.effective_user.id)] = None
+        try: masterUserRequests[str(update.effective_user.id)]
+        except KeyError: masterUserRequests[str(update.effective_user.id)] = None
+        if masterUserRequests[str(update.effective_user.id)] is None or time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
+            if updateDutyGrpUserRequests[str(update.effective_user.id)] is None or not updateDutyGrpUserRequests[str(update.effective_user.id)].is_alive():
+                masterUserRequests[str(update.effective_user.id)] = time.time()
+                backup_charlie_nominal_roll()
+            else: 
+                await update.message.reply_text("Please wait for the current request to finish")
+                return ConversationHandler.END
+        else: 
+            await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
+            return ConversationHandler.END
+    elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
+        await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
+        return ConversationHandler.END
+    else: 
+        await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
+        return ConversationHandler.END
+
 def main(cetQ, tmpCmdsQ):
 
     charlieY2Id = CHARLIE_Y2_ID
@@ -1221,27 +1271,7 @@ def main(cetQ, tmpCmdsQ):
 
         # Monthly backup of supabase nominal roll
         if not backedupSupabase and datetime.now().day == 1:
-            send_tele_msg("Backing up Charlie Nominal Roll from Supabase onto Google Drive...", receiver_id="SUPERUSERS")
-            response = supabase.table("profiles").select("*").execute()
-            response = response.json()
-            response = response.replace('rank', 'Rank').replace('name', 'Name').replace('platoon', 'Platoon').replace('section', 'Section').replace('email', 'Email').replace('contact', 'Contact').replace('appointment', 'Appointment').replace('duty_points', 'Duty points').replace('ration', 'Ration').replace('shirt_size', 'Shirt Size').replace('pants_size', 'Pants Size')
-            data = json.loads(response)
-            data = data['data']
-            field_order = ['id', 'Rank', 'Name', 'Platoon', 'Section', 'Email', 'Contact', 'Appointment', 'Duty points', 'Ration', 'Shirt Size', 'Pants Size']  # Custom order
-            data = [{k: v for k, v in row.items() if k in field_order} for row in data]
-            csv_data = io.StringIO()
-            writer = csv.DictWriter(csv_data, fieldnames=field_order)
-            writer.writeheader()
-            writer.writerows(data)
-            csv_data.seek(0)
-            gauth = GoogleAuth()
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/drive'])
-            service = build('drive', 'v3', credentials=creds)
-            gauth.credentials = creds
-            drive = GoogleDrive(gauth)
-            file = drive.CreateFile({'title': 'Charlie Nominal Roll {}.csv'.format(datetime.now().date()), 'parents': [{'id': SUPBASE_BACKUP_DRIVE_ID}], 'mimeType': 'text/csv'}) 
-            file.SetContentString(csv_data.getvalue())
-            file.Upload()
+            backup_charlie_nominal_roll()
             backedupSupabase = True
         elif datetime.now().day != 1: backedupSupabase = False
 
@@ -1253,7 +1283,7 @@ NORMAL_USER_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Stat
 ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
 \n/updatedutygrp -> Update duty group and schedule CDS reminder according to CET\n/addtmpmember -> Add temporary duty commanders to duty group\
 \n/resettmpdutycmds -> Reset list of temporary duty commanders\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree\
-\n/generateIR -> IR generator"
+\n/generateIR -> IR generator\n/backupcharlienominalroll -> Backup charlie nominal roll from supabase to google drive"
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
@@ -2039,6 +2069,7 @@ def telegram_manager() -> None:
     application.add_handler(CommandHandler("checkconduct", checkConductHandler))
     application.add_handler(CommandHandler("updateconducttracking", updateConductHandler))
     application.add_handler(CommandHandler("resettmpdutycmds", resettmpdutycmds))
+    application.add_handler(CommandHandler("backupcharlienominalroll", backupcharlienominalroll))
 
     # Add a conversation handler for the new command
     conv_dutygrp_handler = ConversationHandler(
