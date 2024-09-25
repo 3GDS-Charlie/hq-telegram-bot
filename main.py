@@ -24,6 +24,7 @@ from googleapiclient.http import MediaIoBaseDownload
 import telegram
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackContext, ConversationHandler, MessageHandler, filters
+from telegram.error import NetworkError
 import asyncio
 import nest_asyncio
 nest_asyncio.apply() # patch asyncio
@@ -757,27 +758,46 @@ def checkMcStatus(receiver_id = None):
                     while done is False: status, done = downloader.next_chunk()
                     imageIo.seek(0)
                     if driveMcStatus['fileExtension'].upper() == 'PDF': # PDF Formats
-                        images = convert_from_bytes(imageIo.read(), first_page=0, last_page=1)
-                        pil_image = images[0]  # Convert the first page only
-                        img = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
-                        del images
+                        try: 
+                            images = convert_from_bytes(imageIo.read(), first_page=0, last_page=1)
+                            pil_image = images[0]  # Convert the first page only
+                            img = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+                            del images
+                        except Exception as e:
+                            if mcStatus[5] == "MC" and (mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)) not in possibleMcList: possibleMcList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
+                            elif mcStatus[5] == "Status" and (mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)) not in possibleStatusList: possibleStatusList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
+                            continue
                     elif driveMcStatus['fileExtension'].upper() == 'HEIC': # HEIC Formats
-                        heif_file = pyheif.read(imageIo.read())
-                        image = Image.frombytes(
-                            heif_file.mode, 
-                            heif_file.size, 
-                            heif_file.data,
-                            "raw",
-                            heif_file.mode,
-                            heif_file.stride,
-                        )
-                        img = np.array(image) # Ensure it's in RGB mode
-                        del heif_file, image
-                    else: #jpg/jpeg formats
-                        file_data = BytesIO(request.execute())
-                        imageArray = np.asarray(bytearray(file_data.read()), dtype="uint8")
-                        img = cv2.imdecode(imageArray, cv2.IMREAD_COLOR)
-                        del file_data, imageArray
+                        try:
+                            heif_file = pyheif.read(imageIo.read())
+                            image = Image.frombytes(
+                                heif_file.mode, 
+                                heif_file.size, 
+                                heif_file.data,
+                                "raw",
+                                heif_file.mode,
+                                heif_file.stride,
+                            )
+                            img = np.array(image) # Ensure it's in RGB mode
+                            del heif_file, image
+                        except Exception as e:
+                            if mcStatus[5] == "MC" and (mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)) not in possibleMcList: possibleMcList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
+                            elif mcStatus[5] == "Status" and (mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)) not in possibleStatusList: possibleStatusList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
+                            continue
+                    elif driveMcStatus['fileExtension'].upper() == 'JPG' or driveMcStatus['fileExtension'].upper() == 'JPEG': #jpg/jpeg formats
+                        try:
+                            file_data = BytesIO(request.execute())
+                            imageArray = np.asarray(bytearray(file_data.read()), dtype="uint8")
+                            img = cv2.imdecode(imageArray, cv2.IMREAD_COLOR)
+                            del file_data, imageArray
+                        except Exception as e:
+                            if mcStatus[5] == "MC" and (mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)) not in possibleMcList: possibleMcList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
+                            elif mcStatus[5] == "Status" and (mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)) not in possibleStatusList: possibleStatusList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
+                            continue
+                    else: # unknown image type
+                        if mcStatus[5] == "MC" and (mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)) not in possibleMcList: possibleMcList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
+                        elif mcStatus[5] == "Status" and (mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)) not in possibleStatusList: possibleStatusList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
+                        continue
                     imageText = model([img]).render().replace("\n", "").replace(" ", "")
                     matches = re.findall(combinedPattern, imageText)
                     allDates = list()
@@ -1021,14 +1041,14 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
         noFPTimeFound = True
         for segment in cetSegments:
             if "Duty Personnel" in segment: newDate = segment.split('[')[1].split('/')[0].replace(" ", "")
-            if 'FP' in segment: fpTime = segment.split(" ")[0]
+            if 'FP' in segment and fpTime is None: fpTime = segment.split(" ")[0]
             if 'CDS' in segment: CDS = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
             elif 'PDS7' in segment: PDS7 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
             elif 'PDS8' in segment: PDS8 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
             elif 'PDS9' in segment: PDS9 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
-            if fpTime is not None: 
-                noFPTimeFound = False
-                cetQueue.put((newDate, fpTime, receiver_id))
+        if fpTime is not None: 
+            noFPTimeFound = False
+            cetQueue.put((newDate, fpTime, receiver_id))
         if noFPTimeFound: 
             cetQueue.put(None)
             send_tele_msg("No FP time found. CDS reminder not scheduled.", receiver_id="SUPERUSERS")
@@ -2001,6 +2021,14 @@ async def timeout(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text("Conversation timed out.")
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
+async def error_handler(update, context):
+    try:
+        raise context.error
+    except NetworkError as e:
+        print(f"NetworkError occurred: {e}")
+    except Exception as e:
+        print(f"An error occurred: {e}", exc_info=True)
+
 def telegram_manager() -> None:
 
     application = Application.builder().token(TELEGRAM_CHANNEL_BOT_TOKEN).build()
@@ -2058,6 +2086,7 @@ def telegram_manager() -> None:
     application.add_handler(conv__IR_handler)
     application.add_handler(conv_tempmembers_handler)
     application.add_handler(MessageHandler(filters.COMMAND, unknownCommand))
+    application.add_error_handler(error_handler)
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
