@@ -1439,7 +1439,7 @@ async def addtmpmember(update: Update, context: CallbackContext) -> int:
 
 async def addmembernames(update: Update, context: CallbackContext) -> int:
 
-    try: 
+    try:
         int(update.message.text)
         num_digits = len(update.message.text)
         if num_digits != 8: 
@@ -1478,7 +1478,6 @@ async def addmembernames(update: Update, context: CallbackContext) -> int:
                                         reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
         return ADD_TMP_MEMBER
 
-
     except ValueError: pass
 
     gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
@@ -1507,7 +1506,7 @@ async def addmembernames(update: Update, context: CallbackContext) -> int:
             "Please specify the personnel involved:",
             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
         return ADD_TMP_MEMBER
-    
+
     for name, number in PERM_DUTY_CMDS.items():
         if name in tmpname.replace(" ", "").upper():
             await update.message.reply_text("{} is already a permanent member of the duty group. Please provide another name/number".format(userInput))
@@ -1522,13 +1521,12 @@ async def addmembernames(update: Update, context: CallbackContext) -> int:
         if name == tmpname: 
             await update.message.reply_text("{} is already pending temporary member of the duty group. Please provide another name/number:".format(userInput))
             return ADD_TMP_MEMBER
-    for name, number in CHARLIE_DUTY_CMDS.items():
-        if name in tmpname.replace(" ", "").upper():
-            tmpDutyCmdsList.append((tmpname, number))
-            reply_keyboard = [['No']]
-            await update.message.reply_text("Send the name/number of the next member to add. Otherwise send no.", 
-                                            reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
-            return ADD_TMP_MEMBER
+        
+    tmpDutyCmdsList.append((tmpname, number))
+    reply_keyboard = [['No']]
+    await update.message.reply_text("Send the name/number of the next member to add. Otherwise send no.", 
+                                    reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
+    return ADD_TMP_MEMBER
 
 async def addtmpdate(update: Update, context: CallbackContext) -> int:
     await update.message.reply_text("Send the last date (inclusive) to keep the temporary members (e.g. {}):".format(datetime.now().strftime('%d%m%y')))
@@ -1572,10 +1570,10 @@ async def cancel_tempmembers(update: Update, context: CallbackContext) -> int:
 
 async def resettmpdutycmds(update: Update, context: CallbackContext) -> int:
     if str(update.effective_user.id) in list(SUPERUSERS.values()):
-        send_tele_msg("Resetting temporary duty commanders.", receiver_id="SUPERUSERS")
         tmpDutyCmdsDict.clear()
         tmpDutyCmdsList.clear()
         while not tmpDutyCmdsQueue.empty(): tmpDutyCmdsQueue.get()
+        send_tele_msg("Resetted temporary duty commanders.", receiver_id="SUPERUSERS")
         return ConversationHandler.END
     elif str(update.effective_user.id) not in list(SUPERUSERS.values()) and str(update.effective_user.id) in list(CHANNEL_IDS.values()):
         await update.message.reply_text("You are not authorised to use this function. Contact Charlie HQ specs for assistance.")
