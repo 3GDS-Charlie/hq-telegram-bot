@@ -747,7 +747,7 @@ def checkMcStatus(receiver_id = None):
                 tmp[2] = tmp[2].replace("20", "")
                 uploadDate = "".join(tmp)
                 uploadDateTime = datetime.strptime(uploadDate, "%d%m%y").date()
-                if startDate in driveMcStatus['title'] and endDate in driveMcStatus['title']: # found MC file
+                if (startDate in driveMcStatus['title'] and endDate != '-' and endDate in driveMcStatus['title']) or (endDate == '-' and startDate in driveMcStatus['title']): # found MC file
                     foundMcStatusFile = True
                     break
                 elif uploadDateTime >= startDateTime: # possible MC file with upload date later than start of MC date
@@ -861,7 +861,7 @@ def checkMcStatus(receiver_id = None):
                                 tmp = tmp.replace("2025", "25")
                                 end_date = tmp
                             allDates.append((start_date, end_date))
-                    if (startDate, endDate) in allDates: 
+                    if (endDate != '-' and (startDate, endDate) in allDates) or (endDate == '-' and endDate in allDates): 
                         foundMcStatusFile = True
                         # renaming MC file to include date
                         biggestNum = (0, None)
