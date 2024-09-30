@@ -864,8 +864,27 @@ def checkMcStatus(receiver_id = None):
                     if (startDate, endDate) in allDates: 
                         foundMcStatusFile = True
                         # renaming MC file to include date
+                        biggestNum = (0, None)
+                        dateRegEx = r"([0-2][0-9]|3[01])([0][1-9]|1[0-2])([0-9]{2})"
+                        for driveMcStatusTmp in driveMcStatusList:
+                            try:  
+                                start = re.findall(dateRegEx, driveMcStatusTmp['title'])
+                                dates = [''.join(match) for match in start]
+                                allFoundDates = list()
+                                for date in dates:
+                                    date_obj = datetime.strptime(date, "%d%m%y")
+                                    allFoundDates.append(date_obj)
+                                if allFoundDates: smallest_date = min(allFoundDates)
+                                latestNum = (int(driveMcStatusTmp['title'].split(' ')[0]), smallest_date)
+                            except ValueError: latestNum = (0, None)
+                            if (latestNum[1] is not None and biggestNum[1] is not None and latestNum[1] > biggestNum[1]) or (biggestNum[1] is None and latestNum[1] is not None): 
+                                biggestNum = latestNum
                         fileID = driveMcStatus['id']
-                        newName = "{}-{}.{}".format(startDate, endDate, driveMcStatus['fileExtension'])
+                        num = None
+                        if (biggestNum[1] is not None and datetime.strptime(startDate, "%d%m%y") > biggestNum[1]) or (biggestNum[1] is None): num = biggestNum[0]+1
+                        else: num = biggestNum[0]
+                        if mcStatus[5] == "MC": newName = "{} MC {}-{}.{}".format(num, startDate, endDate, driveMcStatus['fileExtension'])
+                        else: newName = "{} (Unknown Status) {}-{}.{}".format(num, startDate, endDate, driveMcStatus['fileExtension'])
                         updated_file = service.files().update(
                             fileId=fileID,
                             body={'name': newName},
@@ -1906,7 +1925,7 @@ async def description(update: Update, context: CallbackContext) -> int:
     elif update.message.text != 'No Changes' and context.user_data['usingPrevIR']:
         context.user_data['description'] = context.user_data['description'] + "\n\n" + update.message.text
     await update.message.reply_text("What is the current status?")
-    await update.message.reply_text("Refer to the templates below when writing your status:\n\nServiceman is currently making his way to *\\(LOCATION\\)*\\.\n\n*Normal Report Sick*\nServiceman has received *\\(DURATION OF MC\\/STATUS \\+ WHAT MC\\/STATUS\\)* from *\\(START DATE\\)* to *\\(END DATE\\)* inclusive\\.\n\n*Medical Appointments*\nServiceman has completed his appointment\\.\\.\\.\n\n\
+    await update.message.reply_text("Refer to the templates below when writing your status:\n\nServiceman is currently making his way to *\\(LOCATION\\)*\\.\n\n*Normal Report Sick*\nAs of *\\(TIME\\)hrs*, serviceman has received *\\(DURATION OF MC\\/STATUS \\+ WHAT MC\\/STATUS\\)* from *\\(START DATE\\)* to *\\(END DATE\\)* inclusive\\.\n\n*Medical Appointments*\nAs of *\\(TIME\\)hrs*, serviceman has completed his appointment\\.\\.\\.\n\n\
 1\\) with no status\\.\n\n\
 2\\) and was given *\\(DURATION OF MC\\/STATUS \\+ WHAT MC\\/STATUS\\)* from *\\(START DATE\\)* to *\\(END DATE\\)* inclusive\\.\n\n\
 3\\) *\\(If Applicable\\)* and was scheduled a follow up appointment on *\\(DATE OF FOLLOW UP APPT\\)*\\.\n\n\
