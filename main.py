@@ -1063,7 +1063,7 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
         noFPTimeFound = True
         for segment in cetSegments:
             if "Duty Personnel" in segment: newDate = segment.split('[')[1].split('/')[0].replace(" ", "")
-            if 'FP' in segment and fpTime is None: fpTime = segment.split(" ")[0]
+            if ('FP' in segment or "firstparade" in segment.replace(" ", "").lower()) and fpTime is None: fpTime = segment.replace("h", " ").split(" ")[0]
             if 'CDS' in segment: CDS = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
             elif 'PDS7' in segment: PDS7 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
             elif 'PDS8' in segment: PDS8 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
