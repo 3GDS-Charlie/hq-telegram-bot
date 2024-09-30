@@ -713,6 +713,7 @@ def checkMcStatus(receiver_id = None):
         possibleStatusList = []
         foundMcStatusFiles = []
         combinedPattern = r"from\s*(\d{1,2}/\d{1,2}/\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))\s*to\s*(\d{1,2}/\d{1,2}/\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))"
+        alternatePattern = r"from\s*(\d{1,2}/\d{1,2}/\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))"
         for count, mcStatus in enumerate(masterList, start = 1):
             rank = mcStatus[0].split(' ')[0]
             folderName = mcStatus[0].replace(rank + " ", "") # remove rank from name
@@ -861,7 +862,40 @@ def checkMcStatus(receiver_id = None):
                                 tmp = tmp.replace("2025", "25")
                                 end_date = tmp
                             allDates.append((start_date, end_date))
-                    if (endDate != '-' and (startDate, endDate) in allDates) or (endDate == '-' and endDate in allDates): 
+                    else: # no from (startdate) to (enddate) matches. try only from (startdate) matches
+                        matches = re.findall(alternatePattern, imageText)
+                        if matches:
+                            for match in matches:
+                                start_date = match[2] or match[1] or match[0]
+                                if start_date == match[1] or start_date == match[2]:
+                                    tmp = start_date.split('-')
+                                    if len(tmp) == 1: # date does not have hyphens
+                                        slave = list()
+                                        for month, number in monthConversion.items():
+                                            matchingMonth = re.findall(month, start_date)
+                                            if len(matchingMonth) != 0: # found corresponding month
+                                                slave = start_date.split(matchingMonth[0])
+                                                slave.insert(1, monthConversion[matchingMonth[0]])
+                                                slave[2] = slave[2].replace("2023", "23")
+                                                slave[2] = slave[2].replace("2024", "24")
+                                                slave[2] = slave[2].replace("2025", "25")
+                                                start_date = "".join(slave)
+                                                break
+                                    else:
+                                        try: tmp[1] = monthConversion[tmp[1]]
+                                        except KeyError: continue
+                                        tmp[2] = tmp[2].replace("2023", "23")
+                                        tmp[2] = tmp[2].replace("2024", "24")
+                                        tmp[2] = tmp[2].replace("2025", "25")
+                                        start_date = "".join(tmp)
+                                elif start_date == match[0]: 
+                                    tmp = start_date.replace("/", "")
+                                    tmp = tmp.replace("2023", "23")
+                                    tmp = tmp.replace("2024", "24")
+                                    tmp = tmp.replace("2025", "25")
+                                    start_date = tmp
+                                allDates.append((start_date, None))
+                    if (endDate != '-' and (startDate, endDate) in allDates) or (endDate == '-' and (startDate, None) in allDates): 
                         foundMcStatusFile = True
                         # renaming MC file to include date
                         biggestNum = (0, None)
@@ -883,9 +917,32 @@ def checkMcStatus(receiver_id = None):
                         num = None
                         if (biggestNum[1] is not None and datetime.strptime(startDate, "%d%m%y") > biggestNum[1]) or (biggestNum[1] is None): num = biggestNum[0]+1
                         elif (biggestNum[1] is not None and datetime.strptime(startDate, "%d%m%y") == biggestNum[1]): num = biggestNum[0]
-                        else: # submitted MC is not the latest MC on the drive. 
-                              # TODO: rename correctly and all subsequent MC files
-                              num = "??"
+                        else:# submitted MC is not the latest MC on the drive.                         
+                            allFiles = list()
+                            for driveMcStatusTmp in driveMcStatusList:
+                                id = driveMcStatusTmp['id']
+                                try:  
+                                    int(driveMcStatusTmp['title'].split(' ')[0])
+                                    num = driveMcStatusTmp['title'].split(' ')[0]
+                                    start = re.findall(dateRegEx, driveMcStatusTmp['title'])
+                                    dates = [''.join(match) for match in start]
+                                    allFoundDates = list()
+                                    for date in dates:
+                                        date_obj = datetime.strptime(date, "%d%m%y")
+                                        allFoundDates.append(date_obj)
+                                    if allFoundDates: smallest_date = min(allFoundDates)
+                                    if smallest_date > datetime.strptime(startDate, "%d%m%y"): 
+                                        allFiles.append((id, num, smallest_date, driveMcStatusTmp['title']))
+                                except ValueError: continue
+                            allFiles = sorted(allFiles, key=lambda x: x[2])
+                            num = allFiles[0][1] # take the next biggest number
+                            for file in allFiles: # rename all number for files that come after current
+                                updated_file = service.files().update(
+                                    fileId=file[0],
+                                    body={'name': file[3].replace(file[1], ("0" if int(file[1]) < 10 else "") + str(int(file[1])+1), 1)},
+                                    fields='id, name'
+                                ).execute()
+
                         if mcStatus[5] == "MC": newName = "{} MC {}-{}.{}".format(num, startDate, endDate, driveMcStatus['fileExtension'])
                         else: newName = "{} {} {}-{}.{}".format(num, mcStatus[6], startDate, endDate, driveMcStatus['fileExtension'])
                         updated_file = service.files().update(
@@ -899,6 +956,7 @@ def checkMcStatus(receiver_id = None):
                         elif mcStatus[5] == "Status" and (mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)) not in possibleStatusList: possibleStatusList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
                     del imageText, img
                     garbageCollector.collect()
+
             if not foundMcStatusFile: 
                 if mcStatus[5] == "MC": lapseMcList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId))) 
                 elif mcStatus[5] == "Status": lapseStatusList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
