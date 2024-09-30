@@ -882,9 +882,12 @@ def checkMcStatus(receiver_id = None):
                         fileID = driveMcStatus['id']
                         num = None
                         if (biggestNum[1] is not None and datetime.strptime(startDate, "%d%m%y") > biggestNum[1]) or (biggestNum[1] is None): num = biggestNum[0]+1
-                        else: num = biggestNum[0]
+                        elif (biggestNum[1] is not None and datetime.strptime(startDate, "%d%m%y") == biggestNum[1]): num = biggestNum[0]
+                        else: # submitted MC is not the latest MC on the drive. 
+                              # TODO: rename correctly and all subsequent MC files
+                              num = "??"
                         if mcStatus[5] == "MC": newName = "{} MC {}-{}.{}".format(num, startDate, endDate, driveMcStatus['fileExtension'])
-                        else: newName = "{} (Unknown Status) {}-{}.{}".format(num, startDate, endDate, driveMcStatus['fileExtension'])
+                        else: newName = "{} {} {}-{}.{}".format(num, mcStatus[6], startDate, endDate, driveMcStatus['fileExtension'])
                         updated_file = service.files().update(
                             fileId=fileID,
                             body={'name': newName},
