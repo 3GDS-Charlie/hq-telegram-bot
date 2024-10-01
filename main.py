@@ -943,8 +943,8 @@ def checkMcStatus(receiver_id = None):
                                     fields='id, name'
                                 ).execute()
 
-                        if mcStatus[5] == "MC": newName = "{} MC {}-{}.{}".format(num, startDate, endDate, driveMcStatus['fileExtension'])
-                        else: newName = "{} {} {}-{}.{}".format(num, mcStatus[6], startDate, endDate, driveMcStatus['fileExtension'])
+                        if mcStatus[5] == "MC": newName = "{} MC {}-{}.{}".format((("0" if num < 10 else "") + str(num)), startDate, endDate, driveMcStatus['fileExtension'])
+                        else: newName = "{} {} {}-{}.{}".format((("0" if num < 10 else "") + str(num)), mcStatus[6], startDate, endDate, driveMcStatus['fileExtension'])
                         updated_file = service.files().update(
                             fileId=fileID,
                             body={'name': newName},
