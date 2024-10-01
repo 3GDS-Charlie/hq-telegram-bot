@@ -1213,7 +1213,7 @@ def autoCheckMA():
         foundMA = False
         pattern = r'\d{6}' # 6 consecutive digits i.e 6 digit date
         secondPattern = r'\d{2}\s[A-Z][a-z]{2}\s\d{2}' # e.g. 28 Aug 23
-        tele_msg = "Medical Appointments today ({}{}{}):".format(datetime.now().day, (("0" + str(datetime.now().month)) if datetime.now().month < 10 else (str(datetime.now().month))), str(datetime.now().year).replace("20", ""))
+        tele_msg = "Medical Appointments today ({}{}{}):".format((("0" + str(datetime.now().day)) if datetime.now().day < 10 else (str(datetime.now().day))), (("0" + str(datetime.now().month)) if datetime.now().month < 10 else (str(datetime.now().month))), str(datetime.now().year).replace("20", ""))
         for index, ma in enumerate(mAs, start = 0):
             if ma == 'DETAILS': 
                 foundStart = True
