@@ -1239,6 +1239,16 @@ def autoCheckMA():
 
 def backup_charlie_nominal_roll():
     try:
+        gauth = GoogleAuth()
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/drive'])
+        service = build('drive', 'v3', credentials=creds)
+        gauth.credentials = creds
+        drive = GoogleDrive(gauth)
+        all_backups = drive.ListFile({'q': f"'{SUPBASE_BACKUP_DRIVE_ID}' in parents and trashed=false"}).GetList()
+        for backup in all_backups:
+            if backup['title'] == '{}_Charlie Nominal Roll.csv'.format(datetime.now().date()):
+                send_tele_msg("A backup from today already exists.", receiver_id="SUPERUSERS")
+                return
         send_tele_msg("Backing up Charlie Nominal Roll from Supabase onto Google Drive...", receiver_id="SUPERUSERS")
         response = supabase.table("profiles").select("*").execute()
         response = response.json()
@@ -1252,12 +1262,7 @@ def backup_charlie_nominal_roll():
         writer.writeheader()
         writer.writerows(data)
         csv_data.seek(0)
-        gauth = GoogleAuth()
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/drive'])
-        service = build('drive', 'v3', credentials=creds)
-        gauth.credentials = creds
-        drive = GoogleDrive(gauth)
-        file = drive.CreateFile({'title': 'Charlie Nominal Roll {}.csv'.format(datetime.now().date()), 'parents': [{'id': SUPBASE_BACKUP_DRIVE_ID}], 'mimeType': 'text/csv'}) 
+        file = drive.CreateFile({'title': '{}_Charlie Nominal Roll.csv'.format(datetime.now().date()), 'parents': [{'id': SUPBASE_BACKUP_DRIVE_ID}], 'mimeType': 'text/csv'}) 
         file.SetContentString(csv_data.getvalue())
         file.Upload()
         send_tele_msg("Done", receiver_id="SUPERUSERS")
