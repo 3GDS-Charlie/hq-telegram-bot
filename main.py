@@ -1239,6 +1239,7 @@ def autoCheckMA():
 
 def backup_charlie_nominal_roll():
     try:
+        send_tele_msg("Backing up Charlie Nominal Roll from Supabase onto Google Drive...", receiver_id="SUPERUSERS")
         gauth = GoogleAuth()
         creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/drive'])
         service = build('drive', 'v3', credentials=creds)
@@ -1249,7 +1250,6 @@ def backup_charlie_nominal_roll():
             if backup['title'] == '{}_Charlie Nominal Roll.csv'.format(datetime.now().date()):
                 send_tele_msg("A backup from today already exists.", receiver_id="SUPERUSERS")
                 return
-        send_tele_msg("Backing up Charlie Nominal Roll from Supabase onto Google Drive...", receiver_id="SUPERUSERS")
         response = supabase.table("profiles").select("*").execute()
         response = response.json()
         response = response.replace('rank', 'Rank').replace('name', 'Name').replace('platoon', 'Platoon').replace('section', 'Section').replace('email', 'Email').replace('contact', 'Contact').replace('appointment', 'Appointment').replace('duty_points', 'Duty points').replace('ration', 'Ration').replace('shirt_size', 'Shirt Size').replace('pants_size', 'Pants Size')
