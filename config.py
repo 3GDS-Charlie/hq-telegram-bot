@@ -51,44 +51,56 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPBASE_BACKUP_DRIVE_ID = os.getenv("SUPBASE_BACKUP_DRIVE_ID")
 
-CHARLIE_DUTY_CMDS = {"ZEYEUNG":os.getenv("ZEYEUNG_NUMBER"), 
-                      "LIANGDING":os.getenv("LIANGDING_NUMBER"), 
-                      "ELLIOT":os.getenv("ELLIOT_NUMBER"), 
-                      "JAVEEN":os.getenv("JAVEEN_NUMBER"), 
-                      "ZACH":os.getenv("ZACH_NUMBER"), 
-                      "ILLIYAS":os.getenv("ILLIYAS_NUMBER"),
-                      "ILLYAS":os.getenv("ILLIYAS_NUMBER"), 
-                      "DAMIEN":os.getenv("DAMIEN_NUMBER"), 
-                      "JOASH":os.getenv("JOASH_NUMBER"), 
-                      "JOEL":os.getenv("JOEL_NUMBER"), 
-                      "JOSEPH":os.getenv("JOSEPH_NUMBER"), 
-                      "MUHAMMAD":os.getenv("MAD_NUMBER"),
-                      "MAD":os.getenv("MAD_NUMBER"), 
-                      "PATRICK":os.getenv("PATRICK_NUMBER"), 
-                      "SHENGJUN":os.getenv("SHENGJUN_NUMBER"), 
-                      "AFIF":os.getenv("AFIF_NUMBER"), 
-                      "IRFAN":os.getenv("IRFAN_NUMBER"), 
-                      "VIKNES":os.getenv("VIKNESH_NUMBER"),
-                      "VIKNESWARAN":os.getenv("VIKNESH_NUMBER"),
-                      "VIKNESH":os.getenv("VIKNESH_NUMBER"),
-                      "VIKNESWARAN":os.getenv("VIKNESH_NUMBER"),
-                      "KERWIN":os.getenv("KERWIN_NUMBER"), 
-                      "NAWFAL":os.getenv("NAWFAL_NUMBER"), 
-                      "SKY":os.getenv("SKY_NUMBER"), 
-                      "SRIRAM":os.getenv("SRIRAM_NUMBER")
-}
+CHARLIE_DUTY_CMDS = [os.getenv("ZEYEUNG_NUMBER"), 
+                     os.getenv("LIANGDING_NUMBER"), 
+                     os.getenv("ELLIOT_NUMBER"), 
+                     os.getenv("JAVEEN_NUMBER"), 
+                     os.getenv("ZACH_NUMBER"), 
+                     os.getenv("ILLIYAS_NUMBER"),
+                     os.getenv("ILLIYAS_NUMBER"), 
+                     os.getenv("DAMIEN_NUMBER"), 
+                     os.getenv("JOASH_NUMBER"), 
+                     os.getenv("JOEL_NUMBER"), 
+                     os.getenv("JOSEPH_NUMBER"), 
+                     os.getenv("MAD_NUMBER"),
+                     os.getenv("MAD_NUMBER"), 
+                     os.getenv("PATRICK_NUMBER"), 
+                     os.getenv("SHENGJUN_NUMBER"), 
+                     os.getenv("AFIF_NUMBER"), 
+                     os.getenv("IRFAN_NUMBER"), 
+                     os.getenv("VIKNESH_NUMBER"),
+                     os.getenv("VIKNESH_NUMBER"),
+                     os.getenv("VIKNESH_NUMBER"),
+                     os.getenv("VIKNESH_NUMBER"),
+                     os.getenv("KERWIN_NUMBER"), 
+                     os.getenv("NAWFAL_NUMBER"), 
+                     os.getenv("SKY_NUMBER"), 
+                     os.getenv("SRIRAM_NUMBER")]
 
 # 4 PS + PC + 2 HQ Spec
-PERM_DUTY_CMDS = {"ZEYEUNG":os.getenv("ZEYEUNG_NUMBER"), 
-                  "LIANGDING":os.getenv("LIANGDING_NUMBER"), 
-                  "KEILOK":os.getenv("KEILOK_NUMBER"), 
-                  "GREGORY":os.getenv("GREGORY_NUMBER"), 
-                  "KAILE":os.getenv("KAILE_NUMBER"), 
-                  "RONGJIN":os.getenv("RONGJIN_NUMBER"), 
-                  "ETHANCHAN":os.getenv("ETHANCHAN_NUMBER"), 
-                  "JEREMIAH":os.getenv("JEREMIAH_NUMBER"), 
-                  "DAEMON":os.getenv("DAEMON_NUMBER"), 
-                  "MAX":os.getenv("MAX_NUMBER"),
-                  "AJLOY":os.getenv("AJLOY_NUMBER"),
-                  "GAOSHAN":os.getenv("GAOSHAN_NUMBER")
-}
+PERM_DUTY_CMDS = [os.getenv("ZEYEUNG_NUMBER"), 
+                  os.getenv("LIANGDING_NUMBER"), 
+                  os.getenv("KEILOK_NUMBER"), 
+                  os.getenv("GREGORY_NUMBER"), 
+                  os.getenv("KAILE_NUMBER"), 
+                  os.getenv("RONGJIN_NUMBER"), 
+                  os.getenv("ETHANCHAN_NUMBER"), 
+                  os.getenv("JEREMIAH_NUMBER"), 
+                  os.getenv("DAEMON_NUMBER"), 
+                  os.getenv("MAX_NUMBER"),
+                  os.getenv("AJLOY_NUMBER"),
+                  os.getenv("GAOSHAN_NUMBER")]
+
+# GREEN_API_ID = WHATSAPP_ID_INSTANCE
+# GREEN_API_TOKEN = WHATSAPP_TOKEN_INSTANCE
+# url = f"https://api.green-api.com/waInstance{GREEN_API_ID}/getChats/{GREEN_API_TOKEN}"
+# try:
+#     response = requests.get(url)
+#     if response.status_code == 200:
+#         chats = response.json()
+#         for chat in chats:
+#             print(chat['name'], chat['id'])
+#     else:
+#         print(f"Failed to retrieve chats: {response.status_code} - {response.text}")
+# except Exception as e:
+#     print(f"Error occurred: {e}")

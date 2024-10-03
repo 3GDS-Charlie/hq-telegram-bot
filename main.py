@@ -1,5 +1,6 @@
 # General Libraries
 import csv
+import requests
 import gc as garbageCollector
 import json
 import time
@@ -79,6 +80,10 @@ rateLimit = 1 # number of seconds between commands per user
 
 tmpDutyCmdsDict = dict()
 tmpDutyCmdsList = list()
+
+charlieNominalRoll = None
+allNames = None
+allContacts = None
  
 def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None):
 
@@ -595,10 +600,11 @@ def updateConductTracking(receiver_id = None):
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
 
-def checkMcStatus(receiver_id = None):
+def checkMcStatus(receiver_id = None, send_whatsapp = False):
 
     startTm = time.time()
     try:
+        if send_whatsapp and ENABLE_WHATSAPP_API: greenAPI = API.GreenAPI(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
         # Get Coy MC/Status list from parade state
         gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
         sheet = gc.open("3GDS CHARLIE PARADE STATE")
@@ -980,10 +986,10 @@ def checkMcStatus(receiver_id = None):
         # write lapsed mc/status list to mc/status lapse tracking sheet
         mcLapse.batch_clear(['A2:G1000'])
         statusLapse.batch_clear(['A2:G1000'])
-        if len(lapseMcList) == 0: send_tele_msg("No MC lapses", receiver_id=receiver_id)
+        if len(lapseMcList) == 0: send_tele_msg("No missing MC files", receiver_id=receiver_id)
         else:
             lapseMcList = sorted(lapseMcList, key=lambda x: datetime.strptime(x[1], "%d %b %y"), reverse=True)
-            tele_msg = "Lapsed MC List:"
+            tele_msg = "Missing MC files:"
             for index, mc in enumerate(lapseMcList, start = 2):
                 mcLapse.update_cells([gspread.cell.Cell(index, 1, mc[0]),
                                       gspread.cell.Cell(index, 2, mc[1]),
@@ -996,13 +1002,15 @@ def checkMcStatus(receiver_id = None):
                 else: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n{}\n".format(mc[1], mc[2], mc[6], mc[7])])
                 if len(tele_msg) > MAX_MESSAGE_LENGTH-1000:
                     send_tele_msg(tele_msg, receiver_id=receiver_id)
-                    tele_msg = "Lapsed MC List:"
+                    if send_whatsapp and ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+                    tele_msg = "Missing MC files:"
             send_tele_msg(tele_msg, receiver_id=receiver_id)
+            if send_whatsapp and ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
         
-        if len(lapseStatusList) == 0: send_tele_msg("No Status lapses", receiver_id=receiver_id)
+        if len(lapseStatusList) == 0: send_tele_msg("No missing status files", receiver_id=receiver_id)
         else:
             lapseStatusList = sorted(lapseStatusList, key=lambda x: datetime.strptime(x[1], "%d %b %y"), reverse=True)
-            tele_msg = "Lapsed Status List:"
+            tele_msg = "Missing status files:"
             for index, status in enumerate(lapseStatusList, start = 2):
                 statusLapse.update_cells([gspread.cell.Cell(index, 1, status[0]),
                                           gspread.cell.Cell(index, 2, status[1]),
@@ -1015,8 +1023,10 @@ def checkMcStatus(receiver_id = None):
                 else: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n{}\n".format(status[1], status[2], status[6], status[7])])
                 if len(tele_msg) > MAX_MESSAGE_LENGTH-2000:
                     send_tele_msg(tele_msg, receiver_id=receiver_id)
-                    tele_msg = "Lapsed Status List:"
+                    if send_whatsapp and ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+                    tele_msg = "Missing status files:"
             send_tele_msg(tele_msg, receiver_id=receiver_id)
+            if send_whatsapp and ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
     
         # Write checked mc/status files to avoid repeated checks
         mcStatusChecked.batch_clear(['A2:H1000'])
@@ -1131,10 +1141,10 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
         for segment in cetSegments:
             if "Duty Personnel" in segment: newDate = segment.split('[')[1].split('/')[0].replace(" ", "")
             if ('FP' in segment or "firstparade" in segment.replace(" ", "").lower()) and fpTime is None: fpTime = segment.replace("h", " ").split(" ")[0]
-            if 'CDS' in segment: CDS = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
-            elif 'PDS7' in segment: PDS7 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
-            elif 'PDS8' in segment: PDS8 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
-            elif 'PDS9' in segment: PDS9 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "")
+            if 'CDS' in segment: CDS = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "").upper()
+            elif 'PDS7' in segment: PDS7 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "").upper()
+            elif 'PDS8' in segment: PDS8 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "").upper()
+            elif 'PDS9' in segment: PDS9 = segment.split(': ')[-1].replace(" ", "").replace("3SG", "").replace("2SG", "").upper()
         if fpTime is not None: 
             noFPTimeFound = False
             cetQueue.put((newDate, fpTime, receiver_id))
@@ -1161,29 +1171,44 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
         group_data = None
         return
     if group_data is not None: 
+        response = supabase.table("profiles").select("*").execute()
+        response = response.json()
+        response = response.replace('rank', 'Rank').replace('name', 'Name').replace('platoon', 'Platoon').replace('section', 'Section').replace('email', 'Email').replace('contact', 'Contact').replace('appointment', 'Appointment').replace('duty_points', 'Duty points').replace('ration', 'Ration').replace('shirt_size', 'Shirt Size').replace('pants_size', 'Pants Size').replace('pes', 'PES')
+        data = json.loads(response)
+        charlieNominalRoll = data['data']
         nextDutyCmds = []
-        try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[CDS])
-        except KeyError: send_tele_msg("Unknown CDS: {}".format(CDS), receiver_id="SUPERUSERS")
-        try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS7])
-        except KeyError: send_tele_msg("Unknown PDS7: {}".format(PDS7), receiver_id="SUPERUSERS")
-        try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS8])
-        except KeyError: send_tele_msg("Unknown PDS8: {}".format(PDS8), receiver_id="SUPERUSERS")
-        try: nextDutyCmds.append(CHARLIE_DUTY_CMDS[PDS9])
-        except KeyError: send_tele_msg("Unknown PDS9: {}".format(PDS9), receiver_id="SUPERUSERS")
+        foundCDS = False
+        foundPDS7 = False
+        foundPDS8 = False
+        foundPDS9 = False
+        for person in charlieNominalRoll:
+            if CDS in person['Name'].upper() and person['Contact'] in CHARLIE_DUTY_CMDS: 
+                nextDutyCmds.append(person['Contact'])
+                foundCDS = True
+            elif PDS7 in person['Name'].upper() and person['Contact'] in CHARLIE_DUTY_CMDS: 
+                nextDutyCmds.append(person['Contact'])
+                foundPDS7 = True
+            elif PDS8 in person['Name'].upper() and person['Contact'] in CHARLIE_DUTY_CMDS: 
+                nextDutyCmds.append(person['Contact'])
+                foundPDS8 = True
+            elif PDS9 in person['Name'].upper() and person['Contact'] in CHARLIE_DUTY_CMDS: 
+                nextDutyCmds.append(person['Contact'])
+                foundPDS9 = True
+            if foundCDS and foundPDS7 and foundPDS8 and foundPDS9: break
+        if not foundCDS: send_tele_msg("Unknown CDS: {}".format(CDS), receiver_id="SUPERUSERS")
+        if not foundPDS7: send_tele_msg("Unknown PDS7: {}".format(PDS7), receiver_id="SUPERUSERS")
+        if not foundPDS8: send_tele_msg("Unknown PDS8: {}".format(PDS8), receiver_id="SUPERUSERS")
+        if not foundPDS9: send_tele_msg("Unknown PDS9: {}".format(PDS9), receiver_id="SUPERUSERS")
         allMembers = group_data['participants']
         for member in allMembers:
             memberId = member['id'].split('@c.us')[0][2:]
-            if memberId not in list(PERM_DUTY_CMDS.values()) and memberId not in nextDutyCmds and str(memberId) not in tmpDutyCmds: 
+            if memberId not in PERM_DUTY_CMDS and memberId not in nextDutyCmds and memberId not in tmpDutyCmds: 
                 if ENABLE_WHATSAPP_API: greenAPI.groups.removeGroupParticipant(dutyGrpId, member['id']) 
 
     # Adding new duty members if they are not already inside
-    if CDS in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[CDS]))
-    if PDS7 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS7]))
-    if PDS8 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS8]))
-    if PDS9 in CHARLIE_DUTY_CMDS and ENABLE_WHATSAPP_API: greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(CHARLIE_DUTY_CMDS[PDS9]))
-
-    # Sending new CET
-    if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(dutyGrpId, cet)
+    if ENABLE_WHATSAPP_API:
+        for num in nextDutyCmds:
+            greenAPI.groups.addGroupParticipant(dutyGrpId, "65{}@c.us".format(num))
 
     # Checking whether all members were added successfully
     url = "https://api.green-api.com/waInstance{}/getGroupData/{}".format(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
@@ -1195,16 +1220,21 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
     else: 
         send_tele_msg("Unable to check whether all members were added successfully: {}.".format(response.json()), receiver_id="SUPERUSERS")
         group_data = None
+    sendCET = True
     if group_data is not None: 
         allMembers = group_data['participants']
         allMemberNumbers = []
         for member in allMembers: allMemberNumbers.append(member['id'].split('@c.us')[0][2:])
         for memberId in nextDutyCmds:
             if memberId not in allMemberNumbers:
-                for name, number in CHARLIE_DUTY_CMDS.items():
-                    if memberId == number: 
+                for person in charlieNominalRoll:
+                    if memberId == person['Contact']: 
+                        name = person['Name'].upper()
                         send_tele_msg("{} - {} was not added succesfully".format(name.replace("3SG", "").replace("2SG", ""), memberId), receiver_id="SUPERUSERS")
+                        sendCET = False
                         break
+    # Sending new CET if all members were added successfully
+    if ENABLE_WHATSAPP_API and sendCET: response = greenAPI.sending.sendMessage(dutyGrpId, cet)
     send_tele_msg("Updated duty group", receiver_id="SUPERUSERS")
 
 def autoCheckMA():
@@ -1247,6 +1277,7 @@ def autoCheckMA():
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
 
 def backup_charlie_nominal_roll():
+    global charlieNominalRoll, allNames, allContacts
     try:
         send_tele_msg("Backing up Charlie Nominal Roll from Supabase onto Google Drive...", receiver_id="SUPERUSERS")
         gauth = GoogleAuth()
@@ -1261,10 +1292,13 @@ def backup_charlie_nominal_roll():
                 return
         response = supabase.table("profiles").select("*").execute()
         response = response.json()
-        response = response.replace('rank', 'Rank').replace('name', 'Name').replace('platoon', 'Platoon').replace('section', 'Section').replace('email', 'Email').replace('contact', 'Contact').replace('appointment', 'Appointment').replace('duty_points', 'Duty points').replace('ration', 'Ration').replace('shirt_size', 'Shirt Size').replace('pants_size', 'Pants Size')
+        response = response.replace('rank', 'Rank').replace('name', 'Name').replace('platoon', 'Platoon').replace('section', 'Section').replace('email', 'Email').replace('contact', 'Contact').replace('appointment', 'Appointment').replace('duty_points', 'Duty points').replace('ration', 'Ration').replace('shirt_size', 'Shirt Size').replace('pants_size', 'Pants Size').replace('pes', 'PES')
         data = json.loads(response)
         data = data['data']
-        field_order = ['id', 'Rank', 'Name', 'Platoon', 'Section', 'Email', 'Contact', 'Appointment', 'Duty points', 'Ration', 'Shirt Size', 'Pants Size']  # Custom order
+        charlieNominalRoll = data
+        allNames = [person['Name'] for person in charlieNominalRoll]
+        allContacts = [person['Contact'] for person in charlieNominalRoll]
+        field_order = ['id', 'Rank', 'Name', 'Platoon', 'Section', 'Email', 'Contact', 'Appointment', 'Duty points', 'Ration', 'Shirt Size', 'Pants Size', 'PES']  # Custom order
         data = [{k: v for k, v in row.items() if k in field_order} for row in data]
         csv_data = io.StringIO()
         writer = csv.DictWriter(csv_data, fieldnames=field_order)
@@ -1301,9 +1335,9 @@ async def backupcharlienominalroll(update: Update, context: ContextTypes.DEFAULT
         await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
         return ConversationHandler.END
 
-def main(cetQ, tmpCmdsQ):
+def main(cetQ, tmpCmdsQ, nominalRollQ):
+    # this function is executed in a separate process
 
-    charlieY2Id = CHARLIE_Y2_ID
     greenAPI = API.GreenAPI(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
     fpDateTime = None
     sentCdsReminder = False
@@ -1313,6 +1347,7 @@ def main(cetQ, tmpCmdsQ):
     while True:
 
         # Auto updating of MC Lapses and MAs everyday at 0600
+        # Also update charlie nominal roll in memory
         if not checkedDailyMcMa and datetime.now().hour == 6 and datetime.now().minute == 0:
             send_tele_msg("Checking for MAs...")
             autoCheckMA()
@@ -1336,7 +1371,19 @@ def main(cetQ, tmpCmdsQ):
             # queue should only hold one list at a time.
             tmpCmdsQ.put(tmpDutyCmdsDict)
             send_tele_msg("Checking for MC and Status Lapses. This might take a while.")
-            checkMcStatus()
+            checkMcStatus(send_whatsapp=ENABLE_WHATSAPP_API)
+            if ENABLE_WHATSAPP_API: send_tele_msg("Sending MC & Status Lapses to WhatsApp if any", receiver_id="SUPERUSERS")
+            
+            # updating charlie nominal roll in memory once per day
+            response = supabase.table("profiles").select("*").execute()
+            response = response.json()
+            response = response.replace('rank', 'Rank').replace('name', 'Name').replace('platoon', 'Platoon').replace('section', 'Section').replace('email', 'Email').replace('contact', 'Contact').replace('appointment', 'Appointment').replace('duty_points', 'Duty points').replace('ration', 'Ration').replace('shirt_size', 'Shirt Size').replace('pants_size', 'Pants Size').replace('pes', 'PES')
+            data = json.loads(response)
+            charlieNominalRoll = data['data']
+            allNames = [person['Name'] for person in charlieNominalRoll]
+            allContacts = [person['Contact'] for person in charlieNominalRoll]
+            nominalRollQ.put((charlieNominalRoll, allNames, allContacts))
+            
             checkedDailyMcMa = True
         elif datetime.now().hour == 6 and datetime.now().minute != 0: checkedDailyMcMa = False
 
@@ -1360,7 +1407,7 @@ def main(cetQ, tmpCmdsQ):
             # send reminder during weekdays when it hits the FP date and time of sent CET
             if datetime.now().isoweekday() in weekDay and datetime.now().day == int(fpDateTime[0][:2]) and datetime.now().hour == int(fpDateTime[1][:2]) and datetime.now().minute == int(fpDateTime[1][-2:]) and not sentCdsReminder:
                 send_tele_msg("Sending automated CDS reminder", receiver_id="SUPERUSERS")
-                if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(charlieY2Id, "This is an automated reminder for the CDS to send the REPORT SICK PARADE STATE\nhttps://docs.google.com/spreadsheets/d/1y6q2rFUE_dbb-l_Ps3R3mQVSPJT_DB_kDys1uyFeXRg/edit?gid=802597665#gid=802597665")
+                if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, "This is an automated reminder for the CDS to send the REPORT SICK PARADE STATE\nhttps://docs.google.com/spreadsheets/d/1y6q2rFUE_dbb-l_Ps3R3mQVSPJT_DB_kDys1uyFeXRg/edit?gid=802597665#gid=802597665")
                 sentCdsReminder = True
 
         # Monthly backup of supabase nominal roll
@@ -1490,6 +1537,7 @@ CONSOLIDATE_TMP_DATE = 2
 
 addtmpmemberUserRequests = dict()
 async def addtmpmember(update: Update, context: CallbackContext) -> int:
+    global charlieNominalRoll, allNames, allContacts
     if str(update.effective_user.id) in list(SUPERUSERS.values()):
         try: addtmpmemberUserRequests[str(update.effective_user.id)]
         except KeyError: addtmpmemberUserRequests[str(update.effective_user.id)] = None
@@ -1517,6 +1565,7 @@ async def addtmpmember(update: Update, context: CallbackContext) -> int:
                     send_tele_msg(tele_msg, receiver_id = "SUPERUSERS")
                 # queue should only hold one list at a time.
                 tmpDutyCmdsQueue.put(tmpDutyCmdsDict)
+                while not nominalRollQueue.empty(): charlieNominalRoll, allNames, allContacts = nominalRollQueue.get()
                 return ADD_TMP_MEMBER
             else: 
                 await update.message.reply_text("Please wait for the current request to finish")
@@ -1532,27 +1581,21 @@ async def addtmpmember(update: Update, context: CallbackContext) -> int:
         return ConversationHandler.END
 
 async def addmembernames(update: Update, context: CallbackContext) -> int:
-
+    global charlieNominalRoll, allNames, allContacts
     try:
         int(update.message.text)
         num_digits = len(update.message.text)
         if num_digits != 8: 
             await update.message.reply_text("Invalid number {}. Please provide another name/number:".format(update.message.text))
             return ADD_TMP_MEMBER
-        
-        gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
-        sheet = gc.open("Charlie Nominal Roll")
-        cCoyNominalRollSheet = sheet.worksheet("COMPANY ORBAT")
-        allValues = cCoyNominalRollSheet.get_all_values()
-        formattedAllValues = list(zip(*allValues))[8] # numbers
 
         tmpname = "Unknown"
-        for index, value in enumerate(formattedAllValues, start = 0):
+        for index, value in enumerate(allContacts, start = 0):
             if value == update.message.text:
-                tmpname = allValues[index][5]
+                tmpname = allNames[index]
                 break
         
-        for name, number in PERM_DUTY_CMDS.items():
+        for number in PERM_DUTY_CMDS:
             if number == update.message.text:
                 await update.message.reply_text("{} ({}) is already a permanent member of the duty group. Please provide another name/number:".format(tmpname, number))
                 return ADD_TMP_MEMBER
@@ -1573,24 +1616,18 @@ async def addmembernames(update: Update, context: CallbackContext) -> int:
         return ADD_TMP_MEMBER
 
     except ValueError: pass
-
-    gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
-    sheet = gc.open("Charlie Nominal Roll")
-    cCoyNominalRollSheet = sheet.worksheet("COMPANY ORBAT")
-    allValues = cCoyNominalRollSheet.get_all_values()
-    formattedAllValues = list(zip(*allValues))[5]
+    
     userInput = update.message.text
-
     formatteduserInput = userInput.replace(" ", "").upper()
     if formatteduserInput == "NO": return await addtmpdate(update, context)
     allMatches = list()
     foundPersonnel = False
     tmpname = None
-    for index, value in enumerate(formattedAllValues, start = 0):
-        if formatteduserInput in value.replace(" ", "").upper():
-            allMatches.append((allValues[index][5], allValues[index][8]))
-            tmpname = allValues[index][5]
-            tmpnum = allValues[index][8]
+    for index, name in enumerate(allNames, start = 0):
+        if formatteduserInput in name.replace(" ", "").upper():
+            allMatches.append((name, allContacts[index]))
+            tmpname = name
+            tmpnum = allContacts[index]
             foundPersonnel = True
     if not foundPersonnel: 
         await update.message.reply_text("Unable to find {}. Please provide another name/number:".format(userInput))
@@ -1602,8 +1639,8 @@ async def addmembernames(update: Update, context: CallbackContext) -> int:
             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
         return ADD_TMP_MEMBER
 
-    for name, number in PERM_DUTY_CMDS.items():
-        if name in tmpname.replace(" ", "").upper():
+    for index, name in enumerate(allNames, start = 0):
+        if tmpname == name and allContacts[index] in PERM_DUTY_CMDS:
             await update.message.reply_text("{} is already a permanent member of the duty group. Please provide another name/number".format(userInput))
             return ADD_TMP_MEMBER
     for key, value in tmpDutyCmdsDict.items():
@@ -1680,6 +1717,7 @@ async def resettmpdutycmds(update: Update, context: CallbackContext) -> int:
 NEW, CHECK_PREV_IR, PREV_IR, TRAINING, NAME, CHECK_PES, DATE_TIME, LOCATION, DESCRIPTION, STATUS, FOLLOW_UP, NOK, REPORTED_BY = range(13)
 
 async def start(update: Update, context: CallbackContext) -> int:
+    global charlieNominalRoll, allNames, allContacts
     if str(update.effective_user.id) not in list(CHANNEL_IDS.values()): 
         await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
         return ConversationHandler.END
@@ -1710,6 +1748,7 @@ async def start(update: Update, context: CallbackContext) -> int:
             "Is it a new/update/final report ?",
             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
         )
+        while not nominalRollQueue.empty(): charlieNominalRoll, allNames, allContacts = nominalRollQueue.get()
         return CHECK_PREV_IR
     else: 
         await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
@@ -1761,11 +1800,7 @@ async def training(update: Update, context: CallbackContext) -> int:
     return NAME
 
 async def name(update: Update, context: CallbackContext) -> int:
-    gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
-    sheet = gc.open("Charlie Nominal Roll")
-    cCoyNominalRollSheet = sheet.worksheet("COMPANY ORBAT")
-    allValues = cCoyNominalRollSheet.get_all_values()
-    formattedAllValues = list(zip(*allValues))[5]
+    global charlieNominalRoll, allNames, allContacts
     if not context.user_data['checkingName']: userInput = update.message.text
     else: 
         if isinstance(context.user_data['nameToBeChecked'], list): userInput = update.message.text
@@ -1777,12 +1812,12 @@ async def name(update: Update, context: CallbackContext) -> int:
     formatteduserInput = userInput.replace(" ", "").upper()
     allMatches = list()
     foundPersonnel = False
-    for index, value in enumerate(formattedAllValues, start = 0):
-        if formatteduserInput in value.replace(" ", "").upper():
-            allMatches.append(allValues[index][5])
-            context.user_data['name'] = allValues[index]
+    for index, person in enumerate(charlieNominalRoll, start = 0):
+        if formatteduserInput in person['Name'].replace(" ", "").upper():
+            allMatches.append(person['Name'])
+            context.user_data['name'] = person
             foundPersonnel = True
-    if not foundPersonnel: 
+    if not foundPersonnel:
         await update.message.reply_text("Unable to find {}. Please provide another name:".format(userInput))
         return NAME
     if len(allMatches) > 1: # more than one match found
@@ -1791,7 +1826,7 @@ async def name(update: Update, context: CallbackContext) -> int:
             "Please specify the personnel involved:",
             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
         return NAME
-    if context.user_data['name'][15] == "":
+    if context.user_data['name']['PES'] == "":
         reply_keyboard = [['A', 'B1']]
         await update.message.reply_text(
             "What is the PES status of {} ?".format(userInput),
@@ -1808,7 +1843,7 @@ async def checkPes(update: Update, context: CallbackContext) -> int:
         if pes not in allPesStatus: 
             await update.message.reply_text("Unknown PES Status: {}. Please send another PES status:".format(pes))
             return CHECK_PES
-        context.user_data['name'][15] = pes
+        context.user_data['name']['PES'] = pes
     if context.user_data['findingName'] or context.user_data['checkingName']: return await location(update, context)
     await update.message.reply_text("Please provide the date and time of the incident (e.g. {}):".format(datetime.now().strftime('%d%m%y %H%M')))
     return DATE_TIME
@@ -1983,20 +2018,20 @@ async def location(update: Update, context: CallbackContext) -> int:
             return DESCRIPTION
         else:
             await update.message.reply_text("Please write the description following the below text")
-            await update.message.reply_text("On {} at about {}hrs, {} {}...".format(context.user_data['date_time'][:6], context.user_data['date_time'][-4:], context.user_data['name'][4], context.user_data['name'][5]))
+            await update.message.reply_text("On {} at about {}hrs, {} {}...".format(context.user_data['date_time'][:6], context.user_data['date_time'][-4:], context.user_data['name']['Rank'], context.user_data['name']['Name']))
             await update.message.reply_text("Refer to the templates below when writing your description:\n\n*Normal Report Sick*\n\\.\\.\\. requested permission from *\\(RANK \\+ NAME\\)* to report sick at *\\(LOCATION\\)* for *\\(REASON\\)*\\.\n\n*Medical Appointment*\n\\.\\.\\. has left *\\(LOCATION\\)* to attend his medical appointment at *\\(LOCATION\\)* for his *\\(TYPE\\)* *\\(medical appointment\\/surgery\\)*", parse_mode='MarkdownV2')
             return DESCRIPTION
 
     else:
         context.user_data['location'] = update.message.text
         await update.message.reply_text("Please write the description following the below text")
-        await update.message.reply_text("On {} at about {}hrs, {} {}...".format(context.user_data['date_time'][:6], context.user_data['date_time'][-4:], context.user_data['name'][4], context.user_data['name'][5]))
+        await update.message.reply_text("On {} at about {}hrs, {} {}...".format(context.user_data['date_time'][:6], context.user_data['date_time'][-4:], context.user_data['name']['Rank'], context.user_data['name']['Name']))
         await update.message.reply_text("Refer to the templates below when writing your description:\n\n*Normal Report Sick*\n\\.\\.\\. requested permission from *\\(RANK \\+ NAME\\)* to report sick at *\\(LOCATION\\)* for *\\(REASON\\)*\\.\n\n*Medical Appointment*\n\\.\\.\\. has left *\\(LOCATION\\)* to attend his medical appointment at *\\(LOCATION\\)* for his *\\(TYPE\\)* *\\(medical appointment\\/surgery\\)*", parse_mode='MarkdownV2')
         return DESCRIPTION
 
 async def description(update: Update, context: CallbackContext) -> int:
     if update.message.text != 'No Changes' and not context.user_data['usingPrevIR']:
-        context.user_data['description'] = "On {} at about {}hrs, {} {} ".format(context.user_data['date_time'][:6], context.user_data['date_time'][-4:], context.user_data['name'][4], context.user_data['name'][5]) + update.message.text
+        context.user_data['description'] = "On {} at about {}hrs, {} {} ".format(context.user_data['date_time'][:6], context.user_data['date_time'][-4:], context.user_data['name']['Rank'], context.user_data['name']['Name']) + update.message.text
     elif update.message.text != 'No Changes' and context.user_data['usingPrevIR']:
         context.user_data['description'] = context.user_data['description'] + "\n\n" + update.message.text
     await update.message.reply_text("What is the current status?")
@@ -2034,19 +2069,15 @@ async def nok(update: Update, context: CallbackContext) -> int:
     return REPORTED_BY
 
 async def reported_by(update: Update, context: CallbackContext) -> int:
+    global charlieNominalRoll, allNames, allContacts
     userInput = update.message.text
-    gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
-    sheet = gc.open("Charlie Nominal Roll")
-    cCoyNominalRollSheet = sheet.worksheet("COMPANY ORBAT")
-    allValues = cCoyNominalRollSheet.get_all_values()
-    formattedAllValues = list(zip(*allValues))[5]
     formatteduserInput = userInput.replace(" ", "").upper()
     reportingPerson = None
     allMatches = list()
-    for index, value in enumerate(formattedAllValues, start = 0):
-        if formatteduserInput in value.replace(" ", ""):
-            allMatches.append(allValues[index][5])
-            reportingPerson = allValues[index]
+    for index, name in enumerate(allNames, start = 0):
+        if formatteduserInput in name.replace(" ", ""):
+            allMatches.append(allNames[index])
+            reportingPerson = charlieNominalRoll[index]
     if len(allMatches) > 1:
         reply_keyboard = [allMatches]
         await update.message.reply_text(
@@ -2058,6 +2089,16 @@ async def reported_by(update: Update, context: CallbackContext) -> int:
         return REPORTED_BY
     context.user_data['reported_by'] = reportingPerson
     await update.message.reply_text("Generating IR...")
+    gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
+    sheet = gc.open("Charlie Nominal Roll")
+    cCoyNominalRollSheet = sheet.worksheet("COMPANY ORBAT")
+    allPerson = cCoyNominalRollSheet.get_all_values()
+    nric = None
+    for person in allPerson:
+        if person[8] == context.user_data['name']['Contact']:
+            nric = person[3]
+            break
+    if nric is None: nric = "Unknown NRIC"
     await update.message.reply_text("*INCIDENT REPORT*\n\
 *{}: 3 GDS {} RELATED REPORT*\n\
 \n\
@@ -2099,17 +2140,17 @@ ASIS Report - No\n\
 {} {}\n\
 (HP: {} {})".format(context.user_data['new'].upper(), context.user_data['training_related'].upper(),
         context.user_data['training_related'],
-        context.user_data['name'][4], context.user_data['name'][5],
-        context.user_data['name'][3],
-        context.user_data['name'][15],
+        context.user_data['name']['Rank'], context.user_data['name']['Name'],
+        nric,
+        context.user_data['name']['PES'],
         context.user_data['date_time'][:6], context.user_data['date_time'][-4:],
         context.user_data['location'],
         context.user_data['description'],
         context.user_data['status'],
         context.user_data['follow_up'],
         context.user_data['nok_informed'],
-        reportingPerson[4], reportingPerson[5],
-        reportingPerson[8][:4], reportingPerson[8][-4:]))
+        reportingPerson['Rank'], reportingPerson['Name'],
+        reportingPerson['Contact'][:4], reportingPerson['Contact'][-4:]))
     await update.message.reply_text("Copy and paste the generated IR to WhatsApp")
     return ConversationHandler.END
 
@@ -2219,8 +2260,17 @@ if __name__ == '__main__':
     send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
     send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
     send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
+    
+    response = supabase.table("profiles").select("*").execute()
+    response = response.json()
+    response = response.replace('rank', 'Rank').replace('name', 'Name').replace('platoon', 'Platoon').replace('section', 'Section').replace('email', 'Email').replace('contact', 'Contact').replace('appointment', 'Appointment').replace('duty_points', 'Duty points').replace('ration', 'Ration').replace('shirt_size', 'Shirt Size').replace('pants_size', 'Pants Size').replace('pes', 'PES')
+    data = json.loads(response)
+    charlieNominalRoll = data['data']
+    allNames = [person['Name'] for person in charlieNominalRoll]
+    allContacts = [person['Contact'] for person in charlieNominalRoll]
     cetQueue = multiprocessing.Queue()
     tmpDutyCmdsQueue = multiprocessing.Queue()
-    mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue, tmpDutyCmdsQueue, ))
+    nominalRollQueue = multiprocessing.Queue()
+    mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue, tmpDutyCmdsQueue, nominalRollQueue, ))
     mainCheckMcProcess.start()
     telegram_manager()
