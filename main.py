@@ -1438,6 +1438,7 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ):
     Daily = False
     backedupSupabase = False
     oldCellsUpdate = None
+    atRiskPersonnel = None
     weekDay = [1, 2, 3, 4, 5]
     while True:
 
@@ -1481,10 +1482,10 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ):
             nominalRollQ.put((charlieNominalRoll, allNames, allContacts))
             
             # sending of HA at risk personnel
-            while not haQ.empty():
-                atRiskPersonnel = haQ.get()
+            while atRiskPersonnel is None:
+                while not haQ.empty():
+                    atRiskPersonnel = haQ.get()
             haQ.put(atRiskPersonnel)
-            if ENABLE_WHATSAPP_API: send_tele_msg("Sending HA at risk personnel to WhatsApp if any", receiver_id="SUPERUSERS")
             tele_msg = "HA At Risk:"
             for person, details in atRiskPersonnel:
                 tele_msg = "\n".join([tele_msg, "{} - {}".format(person, details)])
@@ -1492,9 +1493,9 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ):
                     send_tele_msg(tele_msg)
                     if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
                     tele_msg = "HA At Risk:"
-                send_tele_msg(tele_msg)
-                if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
-            
+            send_tele_msg(tele_msg)
+            if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+            if ENABLE_WHATSAPP_API: send_tele_msg("Sending HA at risk personnel to WhatsApp if any", receiver_id="SUPERUSERS")
             Daily = True
         
         elif datetime.now().hour == 6 and datetime.now().minute != 0: Daily = False
