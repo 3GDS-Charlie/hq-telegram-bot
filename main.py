@@ -1343,87 +1343,91 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
     '''
         :param oldCellsUpdate (list): The old list of cell updates to the sheet. To determine if there is a need to update the sheet again 
     '''
-    try: 
-        sheet = gc.open("Charlie Conduct Tracking")
-        conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
-        allValues = conductTrackingSheet.get_all_values()
-        formattedAllValues = list(zip(*allValues))
-        haBuiltUpColumn = formattedAllValues[2]
-        namesColumn = formattedAllValues[1]
-        allHA = dict()
-        cellsUpdate = list()
-        foundHeader = False
-        for index, row in enumerate(haBuiltUpColumn, start = 0):
-            if row == 'HA BUILT UP': 
-                foundHeader = True
-                continue
-            if not foundHeader: continue
-            if row == 'TRUE': allHA[index] = list() # HA BUILT UP
-            elif row == "FALSE": # HA NOT BUILT UP
-                cellsUpdate.append(gspread.cell.Cell(index+1, 4, ""))
-            else: break
-            endingRow = index
-
-        currentDate = datetime.now().date()
-        columnNum = len(formattedAllValues)-1
-        while True: # for each column
-            column = formattedAllValues[columnNum]
-            if 'HAPT' in column[3]: 
-                conductDate = datetime.strptime(column[1], "%d%m%y").date()
-                if conductDate > currentDate: # conduct has not happened yet
-                    if columnNum == 0: break
-                    else: columnNum-=1
+    try:
+        try: 
+            sheet = gc.open("Charlie Conduct Tracking")
+            conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
+            allValues = conductTrackingSheet.get_all_values()
+            formattedAllValues = list(zip(*allValues))
+            haBuiltUpColumn = formattedAllValues[2]
+            namesColumn = formattedAllValues[1]
+            allHA = dict()
+            cellsUpdate = list()
+            foundHeader = False
+            for index, row in enumerate(haBuiltUpColumn, start = 0):
+                if row == 'HA BUILT UP': 
+                    foundHeader = True
                     continue
-                if currentDate-conductDate > timedelta(days=27): break # ignore conducts that are more than 4 weeks ago
-                rowNum = 3
-                while True: # for each row in the column
-                    if rowNum not in list(allHA.keys()): 
+                if not foundHeader: continue
+                if row == 'TRUE': allHA[index] = list() # HA BUILT UP
+                elif row == "FALSE": # HA NOT BUILT UP
+                    cellsUpdate.append(gspread.cell.Cell(index+1, 4, ""))
+                else: break
+                endingRow = index
+
+            currentDate = datetime.now().date()
+            columnNum = len(formattedAllValues)-1
+            while True: # for each column
+                column = formattedAllValues[columnNum]
+                if 'HAPT' in column[3]: 
+                    conductDate = datetime.strptime(column[1], "%d%m%y").date()
+                    if conductDate > currentDate: # conduct has not happened yet
+                        if columnNum == 0: break
+                        else: columnNum-=1
+                        continue
+                    if currentDate-conductDate > timedelta(days=27): break # ignore conducts that are more than 4 weeks ago
+                    rowNum = 3
+                    while True: # for each row in the column
+                        if rowNum not in list(allHA.keys()): 
+                            if rowNum == endingRow: break
+                            else: rowNum += 1
+                            continue
+                        if column[rowNum] == 'TRUE': allHA[rowNum].append(conductDate)
                         if rowNum == endingRow: break
                         else: rowNum += 1
-                        continue
-                    if column[rowNum] == 'TRUE': allHA[rowNum].append(conductDate)
-                    if rowNum == endingRow: break
-                    else: rowNum += 1
 
-            if columnNum == 0: break
-            else: columnNum-=1
+                if columnNum == 0: break
+                else: columnNum-=1
 
-        atRiskPersonnel = list()
-        for row, conductDates in allHA.items():
-            if len(conductDates) < 1: 
-                cellsUpdate.append(gspread.cell.Cell(row+1, 4, "NO"))
-                continue
-            conductDates.reverse() # set to oldest first to newest
-            haMaintainedDate = None
-            for index, date in enumerate(conductDates, start = 0):
-                if index == 0: continue
-                if date-conductDates[index-1] <= timedelta(days=7): # 2 conducts within 7 days
-                    haMaintainedDate = date+timedelta(days=1)
+            atRiskPersonnel = list()
+            for row, conductDates in allHA.items():
+                if len(conductDates) < 1: 
+                    cellsUpdate.append(gspread.cell.Cell(row+1, 4, "NO"))
+                    continue
+                conductDates.reverse() # set to oldest first to newest
+                haMaintainedDate = None
+                for index, date in enumerate(conductDates, start = 0):
+                    if index == 0: continue
+                    if date-conductDates[index-1] <= timedelta(days=7): # 2 conducts within 7 days
+                        haMaintainedDate = date+timedelta(days=1)
 
-            if haMaintainedDate is None: # no 2 conducts within 7 days in the past 14 days = HA broke
-                cellsUpdate.append(gspread.cell.Cell(row+1, 4, "NO"))
-            elif currentDate - haMaintainedDate > timedelta(days=6): # ha maintained but last maintained HA activity is more than 7 days ago
-                cellsUpdate.append(gspread.cell.Cell(row+1, 4, "AT RISK"))
-                numActivities = 2
-                for date in conductDates: 
-                    # only require one more activity
-                    if date > haMaintainedDate and date < currentDate: 
-                        numActivities = 1
-                        break
-                latestDate = haMaintainedDate+timedelta(days=13)
-                if numActivities == 2: atRiskPersonnel.append((namesColumn[row], "{} activities latest by {}".format(numActivities, latestDate.strftime("%d%m%y"))))
-                else: atRiskPersonnel.append((namesColumn[row], "{} activity latest by {}".format(numActivities, latestDate.strftime("%d%m%y"))))
-            else: # HA maintained with more than 7 days validity
-                cellsUpdate.append(gspread.cell.Cell(row+1, 4, "YES"))
-        
-        while not haQ.empty(): haQ.get()
-        haQ.put(atRiskPersonnel)
-        # only update sheet if there is a need to
-        if oldCellsUpdate is None: conductTrackingSheet.update_cells(cellsUpdate)
-        elif oldCellsUpdate is not None and oldCellsUpdate != cellsUpdate: conductTrackingSheet.update_cells(cellsUpdate)
-        return cellsUpdate
-    except requests.exceptions.JSONDecodeError: # google API gave up momentarily
-        return oldCellsUpdate
+                if haMaintainedDate is None: # no 2 conducts within 7 days in the past 14 days = HA broke
+                    cellsUpdate.append(gspread.cell.Cell(row+1, 4, "NO"))
+                elif currentDate - haMaintainedDate > timedelta(days=6): # ha maintained but last maintained HA activity is more than 7 days ago
+                    cellsUpdate.append(gspread.cell.Cell(row+1, 4, "AT RISK"))
+                    numActivities = 2
+                    for date in conductDates: 
+                        # only require one more activity
+                        if date > haMaintainedDate and date < currentDate: 
+                            numActivities = 1
+                            break
+                    latestDate = haMaintainedDate+timedelta(days=13)
+                    if numActivities == 2: atRiskPersonnel.append((namesColumn[row], "{} activities latest by {}".format(numActivities, latestDate.strftime("%d%m%y"))))
+                    else: atRiskPersonnel.append((namesColumn[row], "{} activity latest by {}".format(numActivities, latestDate.strftime("%d%m%y"))))
+                else: # HA maintained with more than 7 days validity
+                    cellsUpdate.append(gspread.cell.Cell(row+1, 4, "YES"))
+
+            while not haQ.empty(): haQ.get()
+            haQ.put(atRiskPersonnel)
+            # only update sheet if there is a need to
+            if oldCellsUpdate is None: conductTrackingSheet.update_cells(cellsUpdate)
+            elif oldCellsUpdate is not None and oldCellsUpdate != cellsUpdate: conductTrackingSheet.update_cells(cellsUpdate)
+            return cellsUpdate
+        except requests.exceptions.JSONDecodeError: # google API gave up momentarily
+            return oldCellsUpdate
+    except Exception as e:
+        send_tele_msg("Encountered exception while trying to update conduct tracking sheet:\n{}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
+        return None
 
 def main(cetQ, tmpCmdsQ, nominalRollQ, haQ):
     # this function is executed in a separate process
