@@ -20,6 +20,7 @@ from google.oauth2 import service_account
 from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
+gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
 
 # Telegram API
 import telegram
@@ -176,7 +177,6 @@ def convertTimestampToDatetime(timestamp, tzinfo=ZoneInfo("Asia/Singapore")):
 
 def insertConductTracking(conductDate: str, conductName: str, conductColumn: int):
     
-    gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
     sheet = gc.open("Charlie Conduct Tracking")
     conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
 
@@ -462,7 +462,6 @@ def insertConductTracking(conductDate: str, conductName: str, conductColumn: int
 def updateConductTracking(receiver_id = None):
     try: 
         global responseContent
-
         if responseContent is not None: 
             responseContent = json.loads(responseContent) # conversion from str response to a dict
             events = responseContent['events']
@@ -479,7 +478,7 @@ def updateConductTracking(receiver_id = None):
                         futureEvents[startDateTime].append(i)
 
         changesMade = True
-        gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
+    
         sheet = gc.open("Charlie Conduct Tracking")
         while changesMade:
             changesMade = False
@@ -604,9 +603,8 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
 
     startTm = time.time()
     try:
-        if send_whatsapp and ENABLE_WHATSAPP_API: greenAPI = API.GreenAPI(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
+        if send_whatsapp: greenAPI = API.GreenAPI(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
         # Get Coy MC/Status list from parade state
-        gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
         sheet = gc.open("3GDS CHARLIE PARADE STATE")
         cCoySheet = sheet.worksheet("C COY")
         allValues = cCoySheet.get_all_values()
@@ -757,7 +755,7 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                 if (startDate in driveMcStatus['title'] and endDate != '-' and endDate in driveMcStatus['title']) or (endDate == '-' and startDate in driveMcStatus['title']): # found MC file
                     foundMcStatusFile = True
                     break
-                elif uploadDateTime >= startDateTime: # possible MC file with upload date later than start of MC date
+                elif uploadDateTime >= startDateTime-timedelta(days=7): # possible file with upload date no earlier than 7 days before start of MC/status
                     request = service.files().get_media(fileId=driveMcStatus['id'])
                     imageIo = io.BytesIO()
                     downloader = MediaIoBaseDownload(imageIo, request)
@@ -990,55 +988,63 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
         else:
             lapseMcList = sorted(lapseMcList, key=lambda x: datetime.strptime(x[1], "%d %b %y"), reverse=True)
             tele_msg = "Missing MC files:"
+            cellUpdates = list()
             for index, mc in enumerate(lapseMcList, start = 2):
-                mcLapse.update_cells([gspread.cell.Cell(index, 1, mc[0]),
-                                      gspread.cell.Cell(index, 2, mc[1]),
-                                      gspread.cell.Cell(index, 3, mc[2]),
-                                      gspread.cell.Cell(index, 4, mc[3]),
-                                      gspread.cell.Cell(index, 5, mc[4]),
-                                      gspread.cell.Cell(index, 6, mc[6]),
-                                      gspread.cell.Cell(index, 7, mc[7])])
+                cellUpdates.append(gspread.cell.Cell(index, 1, mc[0]))
+                cellUpdates.append(gspread.cell.Cell(index, 2, mc[0]))
+                cellUpdates.append(gspread.cell.Cell(index, 3, mc[0]))
+                cellUpdates.append(gspread.cell.Cell(index, 4, mc[0]))
+                cellUpdates.append(gspread.cell.Cell(index, 5, mc[0]))
+                cellUpdates.append(gspread.cell.Cell(index, 6, mc[0]))
+                cellUpdates.append(gspread.cell.Cell(index, 7, mc[0]))
+
                 if mc in possibleMcList: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {} (Possible MC found)\n{}\n{}\n".format(mc[1], mc[2], mc[6], mc[7])])
                 else: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n{}\n".format(mc[1], mc[2], mc[6], mc[7])])
                 if len(tele_msg) > MAX_MESSAGE_LENGTH-1000:
                     send_tele_msg(tele_msg, receiver_id=receiver_id)
-                    if send_whatsapp and ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+                    if send_whatsapp: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
                     tele_msg = "Missing MC files:"
+            mcLapse.update_cells(cellUpdates)
             send_tele_msg(tele_msg, receiver_id=receiver_id)
-            if send_whatsapp and ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+            if send_whatsapp: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
         
         if len(lapseStatusList) == 0: send_tele_msg("No missing status files", receiver_id=receiver_id)
         else:
             lapseStatusList = sorted(lapseStatusList, key=lambda x: datetime.strptime(x[1], "%d %b %y"), reverse=True)
             tele_msg = "Missing status files:"
+            cellUpdates = list()
             for index, status in enumerate(lapseStatusList, start = 2):
-                statusLapse.update_cells([gspread.cell.Cell(index, 1, status[0]),
-                                          gspread.cell.Cell(index, 2, status[1]),
-                                          gspread.cell.Cell(index, 3, status[2]),
-                                          gspread.cell.Cell(index, 4, status[3]),
-                                          gspread.cell.Cell(index, 5, status[4]),
-                                          gspread.cell.Cell(index, 6, status[6]),
-                                          gspread.cell.Cell(index, 7, status[7])])
+                cellUpdates.append(gspread.cell.Cell(index, 1, status[0]))
+                cellUpdates.append(gspread.cell.Cell(index, 2, status[1]))
+                cellUpdates.append(gspread.cell.Cell(index, 3, status[2]))
+                cellUpdates.append(gspread.cell.Cell(index, 4, status[3]))
+                cellUpdates.append(gspread.cell.Cell(index, 5, status[4]))
+                cellUpdates.append(gspread.cell.Cell(index, 6, status[6]))
+                cellUpdates.append(gspread.cell.Cell(index, 7, status[7]))
+
                 if status in possibleStatusList: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {} (Possible status found)\n{}\n{}\n".format(status[1], status[2], status[6], status[7])])
                 else: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n{}\n".format(status[1], status[2], status[6], status[7])])
                 if len(tele_msg) > MAX_MESSAGE_LENGTH-2000:
                     send_tele_msg(tele_msg, receiver_id=receiver_id)
-                    if send_whatsapp and ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+                    if send_whatsapp: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
                     tele_msg = "Missing status files:"
+            statusLapse.update_cells(cellUpdates)
             send_tele_msg(tele_msg, receiver_id=receiver_id)
-            if send_whatsapp and ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+            if send_whatsapp: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
     
         # Write checked mc/status files to avoid repeated checks
         mcStatusChecked.batch_clear(['A2:H1000'])
+        cellUpdates = list()
         for index, status in enumerate(foundMcStatusFiles, start = 2):
-            mcStatusChecked.update_cells([gspread.cell.Cell(index, 1, status[0]), 
-                                          gspread.cell.Cell(index, 2, status[1]),
-                                          gspread.cell.Cell(index, 3, status[2]),
-                                          gspread.cell.Cell(index, 4, status[3]),
-                                          gspread.cell.Cell(index, 5, status[4]),
-                                          gspread.cell.Cell(index, 6, status[5]),
-                                          gspread.cell.Cell(index, 7, status[6]),
-                                          gspread.cell.Cell(index, 8, status[7])])
+            cellUpdates.append(gspread.cell.Cell(index, 1, status[0]))
+            cellUpdates.append(gspread.cell.Cell(index, 2, status[1]))
+            cellUpdates.append(gspread.cell.Cell(index, 3, status[2]))
+            cellUpdates.append(gspread.cell.Cell(index, 4, status[3]))
+            cellUpdates.append(gspread.cell.Cell(index, 5, status[4]))
+            cellUpdates.append(gspread.cell.Cell(index, 6, status[5]))
+            cellUpdates.append(gspread.cell.Cell(index, 7, status[6]))
+            cellUpdates.append(gspread.cell.Cell(index, 8, status[7]))
+        mcStatusChecked.update_cells(cellUpdates)
     except Exception as e:
         print("Encountered exception:\n{}".format(traceback.format_exc()))
         send_tele_msg("Encountered exception:\n{}".format(traceback.format_exc()))
@@ -1046,7 +1052,6 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
 def checkConductTracking(receiver_id = None):
 
     try:
-        gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
         sheet = gc.open("Charlie Conduct Tracking")
         conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
         allDates = conductTrackingSheet.row_values(2)
@@ -1239,7 +1244,6 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
 
 def autoCheckMA():
     try:
-        gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
         sheet = gc.open("3GDS CHARLIE PARADE STATE")
         paradeStateSheet = sheet.worksheet("C COY")
         allValues = paradeStateSheet.get_all_values()
@@ -1335,20 +1339,108 @@ async def backupcharlienominalroll(update: Update, context: ContextTypes.DEFAULT
         await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
         return ConversationHandler.END
 
-def main(cetQ, tmpCmdsQ, nominalRollQ):
+def conductTrackingFactory(haQ, oldCellsUpdate = None):
+    '''
+        :param oldCellsUpdate (list): The old list of cell updates to the sheet. To determine if there is a need to update the sheet again 
+    '''
+    try: 
+        sheet = gc.open("Charlie Conduct Tracking")
+        conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
+        allValues = conductTrackingSheet.get_all_values()
+        formattedAllValues = list(zip(*allValues))
+        haBuiltUpColumn = formattedAllValues[2]
+        namesColumn = formattedAllValues[1]
+        allHA = dict()
+        cellsUpdate = list()
+        foundHeader = False
+        for index, row in enumerate(haBuiltUpColumn, start = 0):
+            if row == 'HA BUILT UP': 
+                foundHeader = True
+                continue
+            if not foundHeader: continue
+            if row == 'TRUE': allHA[index] = list() # HA BUILT UP
+            elif row == "FALSE": # HA NOT BUILT UP
+                cellsUpdate.append(gspread.cell.Cell(index+1, 4, ""))
+            else: break
+            endingRow = index
+
+        currentDate = datetime.now().date()
+        columnNum = len(formattedAllValues)-1
+        while True: # for each column
+            column = formattedAllValues[columnNum]
+            if 'HAPT' in column[3]: 
+                conductDate = datetime.strptime(column[1], "%d%m%y").date()
+                if conductDate > currentDate: # conduct has not happened yet
+                    if columnNum == 0: break
+                    else: columnNum-=1
+                    continue
+                if currentDate-conductDate > timedelta(days=27): break # ignore conducts that are more than 4 weeks ago
+                rowNum = 3
+                while True: # for each row in the column
+                    if rowNum not in list(allHA.keys()): 
+                        if rowNum == endingRow: break
+                        else: rowNum += 1
+                        continue
+                    if column[rowNum] == 'TRUE': allHA[rowNum].append(conductDate)
+                    if rowNum == endingRow: break
+                    else: rowNum += 1
+
+            if columnNum == 0: break
+            else: columnNum-=1
+
+        atRiskPersonnel = list()
+        for row, conductDates in allHA.items():
+            if len(conductDates) < 1: 
+                cellsUpdate.append(gspread.cell.Cell(row+1, 4, "NO"))
+                continue
+            conductDates.reverse() # set to oldest first to newest
+            haMaintainedDate = None
+            for index, date in enumerate(conductDates, start = 0):
+                if index == 0: continue
+                if date-conductDates[index-1] <= timedelta(days=7): # 2 conducts within 7 days
+                    haMaintainedDate = date+timedelta(days=1)
+
+            if haMaintainedDate is None: # no 2 conducts within 7 days in the past 14 days = HA broke
+                cellsUpdate.append(gspread.cell.Cell(row+1, 4, "NO"))
+            elif currentDate - haMaintainedDate > timedelta(days=6): # ha maintained but last maintained HA activity is more than 7 days ago
+                cellsUpdate.append(gspread.cell.Cell(row+1, 4, "AT RISK"))
+                numActivities = 2
+                for date in conductDates: 
+                    # only require one more activity
+                    if date > haMaintainedDate and date < currentDate: 
+                        numActivities = 1
+                        break
+                latestDate = haMaintainedDate+timedelta(days=13)
+                if numActivities == 2: atRiskPersonnel.append((namesColumn[row], "{} activities latest by {}".format(numActivities, latestDate.strftime("%d%m%y"))))
+                else: atRiskPersonnel.append((namesColumn[row], "{} activity latest by {}".format(numActivities, latestDate.strftime("%d%m%y"))))
+            else: # HA maintained with more than 7 days validity
+                cellsUpdate.append(gspread.cell.Cell(row+1, 4, "YES"))
+        
+        while not haQ.empty(): haQ.get()
+        haQ.put(atRiskPersonnel)
+        # only update sheet if there is a need to
+        if oldCellsUpdate is None: conductTrackingSheet.update_cells(cellsUpdate)
+        elif oldCellsUpdate is not None and oldCellsUpdate != cellsUpdate: conductTrackingSheet.update_cells(cellsUpdate)
+        return cellsUpdate
+    except requests.exceptions.JSONDecodeError: # google API gave up momentarily
+        return oldCellsUpdate
+
+def main(cetQ, tmpCmdsQ, nominalRollQ, haQ):
     # this function is executed in a separate process
 
     greenAPI = API.GreenAPI(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
     fpDateTime = None
     sentCdsReminder = False
-    checkedDailyMcMa = False
+    Daily = False
     backedupSupabase = False
+    oldCellsUpdate = None
     weekDay = [1, 2, 3, 4, 5]
     while True:
 
         # Auto updating of MC Lapses and MAs everyday at 0600
         # Also update charlie nominal roll in memory
-        if not checkedDailyMcMa and datetime.now().hour == 6 and datetime.now().minute == 0:
+        # Also send HA at risk personnel
+        if not Daily and datetime.now().hour == 6 and datetime.now().minute == 0:
             send_tele_msg("Checking for MAs...")
             autoCheckMA()
 
@@ -1370,7 +1462,7 @@ def main(cetQ, tmpCmdsQ, nominalRollQ):
                 send_tele_msg(tele_msg, receiver_id = "SUPERUSERS")
             # queue should only hold one list at a time.
             tmpCmdsQ.put(tmpDutyCmdsDict)
-            send_tele_msg("Checking for MC and Status Lapses. This might take a while.")
+            send_tele_msg("Checking for missing MC and Status files. This might take a while.")
             checkMcStatus(send_whatsapp=ENABLE_WHATSAPP_API)
             if ENABLE_WHATSAPP_API: send_tele_msg("Sending MC & Status Lapses to WhatsApp if any", receiver_id="SUPERUSERS")
             
@@ -1384,8 +1476,24 @@ def main(cetQ, tmpCmdsQ, nominalRollQ):
             allContacts = [person['Contact'] for person in charlieNominalRoll]
             nominalRollQ.put((charlieNominalRoll, allNames, allContacts))
             
-            checkedDailyMcMa = True
-        elif datetime.now().hour == 6 and datetime.now().minute != 0: checkedDailyMcMa = False
+            # sending of HA at risk personnel
+            while not haQ.empty():
+                atRiskPersonnel = haQ.get()
+            haQ.put(atRiskPersonnel)
+            if ENABLE_WHATSAPP_API: send_tele_msg("Sending HA at risk personnel to WhatsApp if any", receiver_id="SUPERUSERS")
+            tele_msg = "HA At Risk:"
+            for person, details in atRiskPersonnel:
+                tele_msg = "\n".join([tele_msg, "{} - {}".format(person, details)])
+                if len(tele_msg) > MAX_MESSAGE_LENGTH-2000:
+                    send_tele_msg(tele_msg)
+                    if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+                    tele_msg = "HA At Risk:"
+                send_tele_msg(tele_msg)
+                if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+            
+            Daily = True
+        
+        elif datetime.now().hour == 6 and datetime.now().minute != 0: Daily = False
 
         try: # Auto reminding of CDS to send report sick parade state every morning 
             while not cetQ.empty(): 
@@ -1416,14 +1524,16 @@ def main(cetQ, tmpCmdsQ, nominalRollQ):
             backedupSupabase = True
         elif datetime.now().day != 1: backedupSupabase = False
 
-        time.sleep(5)
+        oldCellsUpdate = conductTrackingFactory(haQ, oldCellsUpdate)
+
+        time.sleep(2)
 
 reply_keyboard_all_commands = [["/checkmcstatus", "/checkconduct", "/checkall", "/updatedutygrp", "/updateconducttracking", "/generateIR"]]
-NORMAL_USER_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
-\n/generateIR -> Help to generate IR"
-ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status Lapses\n/checkconduct -> Conduct Tracking Updates\
+NORMAL_USER_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status files\n/checkconduct -> Conduct Tracking Updates\
+\n/generateIR -> Help to generate IR\n/gethaatrisk -> Get list of HA at risk personnel"
+ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status files\n/checkconduct -> Conduct Tracking Updates\
 \n/updatedutygrp -> Update duty group and schedule CDS reminder according to CET\n/addtmpmember -> Add temporary duty commanders to duty group\
-\n/resettmpdutycmds -> Reset list of temporary duty commanders\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree\
+\n/resettmpdutycmds -> Reset list of temporary duty commanders\n/gethaatrisk -> Get list of HA at risk personnel\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree\
 \n/generateIR -> IR generator\n/backupcharlienominalroll -> Backup charlie nominal roll from supabase to google drive"
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1447,7 +1557,7 @@ async def checkMcStatusHandler(update: Update, context: ContextTypes.DEFAULT_TYP
         if masterUserRequests[str(update.effective_user.id)] is None or time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
             if mcStatusUserRequests[str(update.effective_user.id)] is None or not mcStatusUserRequests[str(update.effective_user.id)].is_alive():
                 masterUserRequests[str(update.effective_user.id)] = time.time()
-                await update.message.reply_text("Checking for MC and Status Lapses. This might take a while.")
+                await update.message.reply_text("Checking for missing MC and Status files. This might take a while.")
                 t1 = threading.Thread(target=checkMcStatus, args=(str(update.effective_user.id),))
                 t1.start()
                 mcStatusUserRequests[str(update.effective_user.id)] = t1
@@ -1713,6 +1823,27 @@ async def resettmpdutycmds(update: Update, context: CallbackContext) -> int:
     else: 
         await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
         return ConversationHandler.END
+
+async def gethaatrisk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if str(update.effective_user.id) in list(CHANNEL_IDS.values()): 
+        try: masterUserRequests[str(update.effective_user.id)]
+        except KeyError: masterUserRequests[str(update.effective_user.id)] = None
+        if masterUserRequests[str(update.effective_user.id)] is None or time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
+            masterUserRequests[str(update.effective_user.id)] = time.time()
+            atRiskPersonnel = None
+            while atRiskPersonnel is None:
+                while not haQueue.empty():
+                    atRiskPersonnel = haQueue.get()
+            haQueue.put(atRiskPersonnel)
+            tele_msg = "HA At Risk:"
+            for person, details in atRiskPersonnel:
+                tele_msg = "\n".join([tele_msg, "{}\n{}\n".format(person, details)])
+                if len(tele_msg) > MAX_MESSAGE_LENGTH-2000:
+                    send_tele_msg(tele_msg, receiver_id=str(update.effective_user.id))
+                    tele_msg = "HA At Risk:"
+            send_tele_msg(tele_msg, receiver_id=str(update.effective_user.id))
+        else: await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
+    else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
 NEW, CHECK_PREV_IR, PREV_IR, TRAINING, NAME, CHECK_PES, DATE_TIME, LOCATION, DESCRIPTION, STATUS, FOLLOW_UP, NOK, REPORTED_BY = range(13)
 
@@ -2089,7 +2220,6 @@ async def reported_by(update: Update, context: CallbackContext) -> int:
         return REPORTED_BY
     context.user_data['reported_by'] = reportingPerson
     await update.message.reply_text("Generating IR...")
-    gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL)
     sheet = gc.open("Charlie Nominal Roll")
     cCoyNominalRollSheet = sheet.worksheet("COMPANY ORBAT")
     allPerson = cCoyNominalRollSheet.get_all_values()
@@ -2203,6 +2333,7 @@ def telegram_manager() -> None:
     application.add_handler(CommandHandler("checkconduct", checkConductHandler))
     application.add_handler(CommandHandler("updateconducttracking", updateConductHandler))
     application.add_handler(CommandHandler("resettmpdutycmds", resettmpdutycmds))
+    application.add_handler(CommandHandler("gethaatrisk", gethaatrisk))
     application.add_handler(CommandHandler("backupcharlienominalroll", backupcharlienominalroll))
 
     # Add a conversation handler for the new command
@@ -2271,6 +2402,7 @@ if __name__ == '__main__':
     cetQueue = multiprocessing.Queue()
     tmpDutyCmdsQueue = multiprocessing.Queue()
     nominalRollQueue = multiprocessing.Queue()
-    mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue, tmpDutyCmdsQueue, nominalRollQueue, ))
+    haQueue = multiprocessing.Queue()
+    mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue, tmpDutyCmdsQueue, nominalRollQueue, haQueue))
     mainCheckMcProcess.start()
     telegram_manager()
