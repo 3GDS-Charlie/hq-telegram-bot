@@ -1894,7 +1894,7 @@ async def checkPrevIR(update: Update, context: CallbackContext) -> int:
     if update.message.text.upper() not in ['NEW', 'UPDATE', 'FINAL']: 
         await update.message.reply_text("Unrecognised response: {}. Please enter New or Update or Final.".format(update.message.text))
         return CHECK_PREV_IR
-    context.user_data['new'] = update.message.text
+    context.user_data['new'] = update.message.text.upper()
     if update.message.text.upper() == "UPDATE" or update.message.text.upper() == "FINAL":
         reply_keyboard = [['Yes', 'No']]
         await update.message.reply_text(
@@ -2133,13 +2133,13 @@ async def location(update: Update, context: CallbackContext) -> int:
         if status is not None and not context.user_data['shiftingStatus'] and description is not None:
             context.user_data['shiftingStatus'] = True
             reply_keyboard = [['Yes', 'No']]
-            await update.message.reply_text("Shift the previous status to the description ?",
+            await update.message.reply_text("Shift the status to the description ?",
                                             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
             return LOCATION
 
         if description is not None:
             reply_keyboard = [['No Changes']]
-            await update.message.reply_text("Please update the description following the below text")
+            await update.message.reply_text("Update the description following the below text")
             if context.user_data['shiftingStatus'] and response == 'Yes':
                 await update.message.reply_text(
                     description + '\n\n' + status, 
@@ -2158,7 +2158,7 @@ async def location(update: Update, context: CallbackContext) -> int:
             await update.message.reply_text("Refer to the templates below when writing your description:\n\n*Normal Report Sick*\n\\.\\.\\. requested permission from *\\(RANK \\+ NAME\\)* to report sick at *\\(LOCATION\\)* for *\\(REASON\\)*\\.\n\n*Medical Appointment*\n\\.\\.\\. has left *\\(LOCATION\\)* to attend his medical appointment at *\\(LOCATION\\)* for his *\\(TYPE\\)* *\\(medical appointment\\/surgery\\)*", parse_mode='MarkdownV2')
             return DESCRIPTION
 
-    else:
+    else: # new IR
         context.user_data['location'] = update.message.text
         await update.message.reply_text("Please write the description following the below text")
         await update.message.reply_text("On {} at about {}hrs, {} {}...".format(context.user_data['date_time'][:6], context.user_data['date_time'][-4:], context.user_data['name']['Rank'], context.user_data['name']['Name']))
@@ -2171,7 +2171,10 @@ async def description(update: Update, context: CallbackContext) -> int:
     elif update.message.text != 'No Changes' and context.user_data['usingPrevIR']:
         context.user_data['description'] = context.user_data['description'] + "\n\n" + update.message.text
     await update.message.reply_text("What is the current status?")
-    await update.message.reply_text("Refer to the templates below when writing your status:\n\nServiceman is currently making his way to *\\(LOCATION\\)*\\.\n\n*Normal Report Sick*\nAs of *\\(TIME\\)hrs*, serviceman has received *\\(DURATION OF MC\\/STATUS \\+ WHAT MC\\/STATUS\\)* from *\\(START DATE\\)* to *\\(END DATE\\)* inclusive\\.\n\n*Medical Appointments*\nAs of *\\(TIME\\)hrs*, serviceman has completed his appointment\\.\\.\\.\n\n\
+    if context.user_data['new'] == "NEW": 
+        await update.message.reply_text("Refer to the template below when writing your status:\n\nServiceman is currently making his way to *\\(LOCATION\\)*\\.", parse_mode='MarkdownV2')
+    else:
+        await update.message.reply_text("Refer to the templates below when writing your status:\n\n*Normal Report Sick*\nAs of *\\(TIME\\)hrs*, serviceman has received *\\(DURATION OF MC\\/STATUS \\+ WHAT MC\\/STATUS\\)* from *\\(START DATE\\)* to *\\(END DATE\\)* inclusive\\.\n\n*Medical Appointments*\nAs of *\\(TIME\\)hrs*, serviceman has completed his appointment\\.\\.\\.\n\n\
 1\\) with no status\\.\n\n\
 2\\) and was given *\\(DURATION OF MC\\/STATUS \\+ WHAT MC\\/STATUS\\)* from *\\(START DATE\\)* to *\\(END DATE\\)* inclusive\\.\n\n\
 3\\) *\\(If Applicable\\)* and was scheduled a follow up appointment on *\\(DATE OF FOLLOW UP APPT\\)*\\.\n\n\
@@ -2180,8 +2183,8 @@ async def description(update: Update, context: CallbackContext) -> int:
 
 async def status(update: Update, context: CallbackContext) -> int:
     context.user_data['status'] = update.message.text
-    if context.user_data['new'] == "Final": reply_keyboard = [['Unit will proceed to close the case.']]
-    elif context.user_data['new'] == "New" or context.user_data['new'] == "Update": reply_keyboard = [['Unit will monitor and update accordingly.']]
+    if context.user_data['new'] == "FINAL": reply_keyboard = [['Unit will proceed to close the case.']]
+    elif context.user_data['new'] == "NEW" or context.user_data['new'] == "UPDATE": reply_keyboard = [['Unit will monitor and update accordingly.']]
     else: reply_keyboard = [['Unit will monitor and update accordingly.', 'Unit will proceed to close the case.']]
     await update.message.reply_text(
         "Follow-up actions?", 
