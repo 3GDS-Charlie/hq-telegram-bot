@@ -1401,7 +1401,7 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
                     if date-conductDates[index-1] <= timedelta(days=7): # 2 conducts within 7 days
                         haMaintainedDate = date+timedelta(days=1)
 
-                if haMaintainedDate is None or currentDate - haMaintainedDate > timedelta(days=14): # no 2 conducts within 7 days in the past 14 days = HA broke
+                if haMaintainedDate is None or currentDate - haMaintainedDate > timedelta(days=13): # no 2 conducts within 7 days in the past 14 days = HA broke
                     cellsUpdate.append(gspread.cell.Cell(row+1, 4, "NO"))
                 elif currentDate - haMaintainedDate > timedelta(days=6): # ha maintained but last maintained HA activity is more than 7 days ago
                     cellsUpdate.append(gspread.cell.Cell(row+1, 4, "AT RISK"))
@@ -1493,9 +1493,11 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ):
                     send_tele_msg(tele_msg)
                     if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
                     tele_msg = "HA At Risk:"
-            send_tele_msg(tele_msg)
-            if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
-            if ENABLE_WHATSAPP_API: send_tele_msg("Sending HA at risk personnel to WhatsApp if any", receiver_id="SUPERUSERS")
+            if len(atRiskPersonnel) != 0: 
+                send_tele_msg(tele_msg)
+                if ENABLE_WHATSAPP_API: 
+                    response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+                    send_tele_msg("Sending HA at risk personnel to WhatsApp", receiver_id="SUPERUSERS")
             Daily = True
         
         elif datetime.now().hour == 6 and datetime.now().minute != 0: Daily = False
@@ -1846,7 +1848,8 @@ async def gethaatrisk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 if len(tele_msg) > MAX_MESSAGE_LENGTH-2000:
                     send_tele_msg(tele_msg, receiver_id=str(update.effective_user.id))
                     tele_msg = "HA At Risk:"
-            send_tele_msg(tele_msg, receiver_id=str(update.effective_user.id))
+            if len(atRiskPersonnel) != 0: send_tele_msg(tele_msg, receiver_id=str(update.effective_user.id))
+            else: send_tele_msg("No HA at risk", receiver_id=str(update.effective_user.id))
         else: await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
     else: await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
 
