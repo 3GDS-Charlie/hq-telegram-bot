@@ -1401,7 +1401,7 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
                     if date-conductDates[index-1] <= timedelta(days=7): # 2 conducts within 7 days
                         haMaintainedDate = date+timedelta(days=1)
 
-                if haMaintainedDate is None: # no 2 conducts within 7 days in the past 14 days = HA broke
+                if haMaintainedDate is None or currentDate - haMaintainedDate > timedelta(days=14): # no 2 conducts within 7 days in the past 14 days = HA broke
                     cellsUpdate.append(gspread.cell.Cell(row+1, 4, "NO"))
                 elif currentDate - haMaintainedDate > timedelta(days=6): # ha maintained but last maintained HA activity is more than 7 days ago
                     cellsUpdate.append(gspread.cell.Cell(row+1, 4, "AT RISK"))
