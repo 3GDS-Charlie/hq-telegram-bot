@@ -1427,7 +1427,7 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
             if oldCellsUpdate is None: conductTrackingSheet.update_cells(cellsUpdate)
             elif oldCellsUpdate is not None and oldCellsUpdate != cellsUpdate: conductTrackingSheet.update_cells(cellsUpdate)
             return cellsUpdate
-        except requests.exceptions.JSONDecodeError: # google API gave up momentarily
+        except (requests.exceptions.JSONDecodeError, gspread.exceptions.APIError): # google API gave up momentarily
             return oldCellsUpdate
     except Exception as e:
         send_tele_msg("Encountered exception while trying to update conduct tracking sheet:\n{}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
