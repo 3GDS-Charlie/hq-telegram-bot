@@ -716,8 +716,8 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
         possibleMcList = []
         possibleStatusList = []
         foundMcStatusFiles = []
-        combinedPattern = r"from\s*(\d{1,2}/\d{1,2}/\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))\s*to\s*(\d{1,2}/\d{1,2}/\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))"
-        alternatePattern = r"from\s*(\d{1,2}/\d{1,2}/\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))"
+        combinedPattern = r"from\s*(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}-\d{1,2}-\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))\s*to\s*(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}-\d{1,2}-\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))"
+        alternatePattern = r"from\s*(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}-\d{1,2}-\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))"
         for count, mcStatus in enumerate(masterList, start = 1):
             rank = mcStatus[0].split(' ')[0]
             folderName = mcStatus[0].replace(rank + " ", "") # remove rank from name
@@ -813,6 +813,7 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                         elif mcStatus[5] == "Status" and (mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)) not in possibleStatusList: possibleStatusList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
                         continue
                     imageText = model([img]).render().replace("\n", "").replace(" ", "")
+                    imageText = imageText.replace("from06-10-2024to08-10-2024", "from06/10/2024to08/10/2024")
                     matches = re.findall(combinedPattern, imageText)
                     allDates = list()
                     if matches:
@@ -841,6 +842,7 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                                     tmp[2] = tmp[2].replace("2025", "25")
                                     start_date = "".join(tmp)
                             elif start_date == match[0]: 
+                                tmp = start_date.replace("-", "")
                                 tmp = start_date.replace("/", "")
                                 tmp = tmp.replace("2023", "23")
                                 tmp = tmp.replace("2024", "24")
@@ -869,6 +871,7 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                                     tmp[2] = tmp[2].replace("2025", "25")
                                     end_date = "".join(tmp)
                             elif end_date == match[3]: 
+                                tmp = end_date.replace("-", "")
                                 tmp = end_date.replace("/", "")
                                 tmp = tmp.replace("2023", "23")
                                 tmp = tmp.replace("2024", "24")
@@ -902,6 +905,7 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                                         tmp[2] = tmp[2].replace("2025", "25")
                                         start_date = "".join(tmp)
                                 elif start_date == match[0]: 
+                                    tmp = start_date.replace("-", "")
                                     tmp = start_date.replace("/", "")
                                     tmp = tmp.replace("2023", "23")
                                     tmp = tmp.replace("2024", "24")
