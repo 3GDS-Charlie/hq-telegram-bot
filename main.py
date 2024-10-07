@@ -991,12 +991,12 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
             cellUpdates = list()
             for index, mc in enumerate(lapseMcList, start = 2):
                 cellUpdates.append(gspread.cell.Cell(index, 1, mc[0]))
-                cellUpdates.append(gspread.cell.Cell(index, 2, mc[0]))
-                cellUpdates.append(gspread.cell.Cell(index, 3, mc[0]))
-                cellUpdates.append(gspread.cell.Cell(index, 4, mc[0]))
-                cellUpdates.append(gspread.cell.Cell(index, 5, mc[0]))
-                cellUpdates.append(gspread.cell.Cell(index, 6, mc[0]))
-                cellUpdates.append(gspread.cell.Cell(index, 7, mc[0]))
+                cellUpdates.append(gspread.cell.Cell(index, 2, mc[1]))
+                cellUpdates.append(gspread.cell.Cell(index, 3, mc[2]))
+                cellUpdates.append(gspread.cell.Cell(index, 4, mc[3]))
+                cellUpdates.append(gspread.cell.Cell(index, 5, mc[4]))
+                cellUpdates.append(gspread.cell.Cell(index, 6, mc[6]))
+                cellUpdates.append(gspread.cell.Cell(index, 7, mc[7]))
 
                 if mc in possibleMcList: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {} (Possible MC found)\n{}\n{}\n".format(mc[1], mc[2], mc[6], mc[7])])
                 else: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n{}\n".format(mc[1], mc[2], mc[6], mc[7])])
@@ -1531,6 +1531,7 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ):
             backedupSupabase = True
         elif datetime.now().day != 1: backedupSupabase = False
 
+        # update conduct tracking sheet
         oldCellsUpdate = conductTrackingFactory(haQ, oldCellsUpdate)
 
         time.sleep(2)
