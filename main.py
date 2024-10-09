@@ -82,9 +82,14 @@ rateLimit = 1 # number of seconds between commands per user
 tmpDutyCmdsDict = dict()
 tmpDutyCmdsList = list()
 
+# supabase
 charlieNominalRoll = None
 allNames = None
 allContacts = None
+
+# google sheet
+googleSheetsNominalRoll = None
+allPerson = None
  
 def send_tele_msg(msg, receiver_id = None,  parseMode = None, replyMarkup = None):
 
@@ -813,7 +818,6 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                         elif mcStatus[5] == "Status" and (mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)) not in possibleStatusList: possibleStatusList.append((mcStatus[0], mcStatus[1], mcStatus[2], mcStatus[3], mcStatus[4], mcStatus[5], mcStatus[6], "https://drive.google.com/drive/folders/{}".format(folderId)))
                         continue
                     imageText = model([img]).render().replace("\n", "").replace(" ", "")
-                    imageText = imageText.replace("from06-10-2024to08-10-2024", "from06/10/2024to08/10/2024")
                     matches = re.findall(combinedPattern, imageText)
                     allDates = list()
                     if matches:
@@ -1350,7 +1354,8 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
     try:
         try: 
             sheet = gc.open("Charlie Conduct Tracking")
-            conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
+            worksheets = sheet.worksheets()             
+            conductTrackingSheet = next(ws for ws in worksheets if ws.title == "CONDUCT TRACKING")
             allValues = conductTrackingSheet.get_all_values()
             formattedAllValues = list(zip(*allValues))
             haBuiltUpColumn = formattedAllValues[2]
@@ -1424,8 +1429,8 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
             while not haQ.empty(): haQ.get()
             haQ.put(atRiskPersonnel)
             # only update sheet if there is a need to
-            if oldCellsUpdate is None: conductTrackingSheet.update_cells(cellsUpdate)
-            elif oldCellsUpdate is not None and oldCellsUpdate != cellsUpdate: conductTrackingSheet.update_cells(cellsUpdate)
+            if (oldCellsUpdate is None or 
+                (oldCellsUpdate is not None and oldCellsUpdate != cellsUpdate)): conductTrackingSheet.update_cells(cellsUpdate)
             return cellsUpdate
         except (requests.exceptions.JSONDecodeError, gspread.exceptions.APIError): # google API gave up momentarily
             return oldCellsUpdate
@@ -1433,7 +1438,7 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
         send_tele_msg("Encountered exception while trying to update conduct tracking sheet:\n{}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
         return None
 
-def main(cetQ, tmpCmdsQ, nominalRollQ, haQ):
+def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetRequestsQ):
     # this function is executed in a separate process
 
     greenAPI = API.GreenAPI(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
@@ -1484,6 +1489,12 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ):
             allNames = [person['Name'] for person in charlieNominalRoll]
             allContacts = [person['Contact'] for person in charlieNominalRoll]
             nominalRollQ.put((charlieNominalRoll, allNames, allContacts))
+
+            sheet = gc.open("Charlie Nominal Roll")
+            worksheets = sheet.worksheets()
+            cCoyNominalRollSheet = next(ws for ws in worksheets if ws.title == "COMPANY ORBAT")
+            allPerson = cCoyNominalRollSheet.get_all_values()
+            sheetNominalRollQ.put((cCoyNominalRollSheet, allPerson))
             
             # sending of HA at risk personnel
             while atRiskPersonnel is None:
@@ -1861,7 +1872,7 @@ async def gethaatrisk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 NEW, CHECK_PREV_IR, PREV_IR, TRAINING, NAME, CHECK_PES, DATE_TIME, LOCATION, DESCRIPTION, STATUS, FOLLOW_UP, NOK, REPORTED_BY = range(13)
 
 async def start(update: Update, context: CallbackContext) -> int:
-    global charlieNominalRoll, allNames, allContacts
+    global charlieNominalRoll, allNames, allContacts, googleSheetsNominalRoll, allPerson
     if str(update.effective_user.id) not in list(CHANNEL_IDS.values()): 
         await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
         return ConversationHandler.END
@@ -1893,6 +1904,7 @@ async def start(update: Update, context: CallbackContext) -> int:
             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
         )
         while not nominalRollQueue.empty(): charlieNominalRoll, allNames, allContacts = nominalRollQueue.get()
+        while not googleSheetNominalRollQueue.empty(): googleSheetsNominalRoll, allPerson = googleSheetNominalRollQueue.get()
         return CHECK_PREV_IR
     else: 
         await update.message.reply_text("Sir stop sir. Too many requests at one time. Please try again later.")
@@ -1944,7 +1956,7 @@ async def training(update: Update, context: CallbackContext) -> int:
     return NAME
 
 async def name(update: Update, context: CallbackContext) -> int:
-    global charlieNominalRoll, allNames, allContacts
+    global charlieNominalRoll, allNames, allContacts, googleSheetsNominalRoll, allPerson
     if not context.user_data['checkingName']: userInput = update.message.text
     else: 
         if isinstance(context.user_data['nameToBeChecked'], list): userInput = update.message.text
@@ -2216,7 +2228,7 @@ async def nok(update: Update, context: CallbackContext) -> int:
     return REPORTED_BY
 
 async def reported_by(update: Update, context: CallbackContext) -> int:
-    global charlieNominalRoll, allNames, allContacts
+    global charlieNominalRoll, allNames, allContacts, googleSheetsNominalRoll, allPerson
     userInput = update.message.text
     formatteduserInput = userInput.replace(" ", "").upper()
     reportingPerson = None
@@ -2236,9 +2248,6 @@ async def reported_by(update: Update, context: CallbackContext) -> int:
         return REPORTED_BY
     context.user_data['reported_by'] = reportingPerson
     await update.message.reply_text("Generating IR...")
-    sheet = gc.open("Charlie Nominal Roll")
-    cCoyNominalRollSheet = sheet.worksheet("COMPANY ORBAT")
-    allPerson = cCoyNominalRollSheet.get_all_values()
     nric = None
     for person in allPerson:
         if person[8] == context.user_data['name']['Contact']:
@@ -2415,10 +2424,18 @@ if __name__ == '__main__':
     charlieNominalRoll = data['data']
     allNames = [person['Name'] for person in charlieNominalRoll]
     allContacts = [person['Contact'] for person in charlieNominalRoll]
+    
+    sheet = gc.open("Charlie Nominal Roll")
+    worksheets = sheet.worksheets()
+    googleSheetsNominalRoll = next(ws for ws in worksheets if ws.title == "COMPANY ORBAT")
+    allPerson = googleSheetsNominalRoll.get_all_values()
+    
     cetQueue = multiprocessing.Queue()
     tmpDutyCmdsQueue = multiprocessing.Queue()
     nominalRollQueue = multiprocessing.Queue()
     haQueue = multiprocessing.Queue()
-    mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue, tmpDutyCmdsQueue, nominalRollQueue, haQueue))
+    googleSheetNominalRollQueue = multiprocessing.Queue()
+    googleSheetRequests = multiprocessing.Queue()
+    mainCheckMcProcess = multiprocessing.Process(target=main, args=(cetQueue, tmpDutyCmdsQueue, nominalRollQueue, haQueue, googleSheetNominalRollQueue, googleSheetRequests))
     mainCheckMcProcess.start()
     telegram_manager()
