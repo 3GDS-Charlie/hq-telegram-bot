@@ -45,7 +45,7 @@ from PIL import Image
 import re
 
 from doctr.models import detection, ocr_predictor
-detection_model = detection.__dict__["db_mobilenet_v3_large"](
+detection_model = detection.__dict__["db_resnet50"](
         pretrained=True,
         bin_thresh=0.3,
         box_thresh=0.1,
@@ -721,8 +721,8 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
         possibleMcList = []
         possibleStatusList = []
         foundMcStatusFiles = []
-        combinedPattern = r"from\s*(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}-\d{1,2}-\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))\s*to\s*(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}-\d{1,2}-\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))"
-        alternatePattern = r"from\s*(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}-\d{1,2}-\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))"
+        combinedPattern = r"from\s*?(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}-\d{1,2}-\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))\s*?to\s*?(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}-\d{1,2}-\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))"
+        alternatePattern = r"from\s*?(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}-\d{1,2}-\d{4}|(\d{1,2}(?:-?)(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-?)\d{4})|(\d{1,2}(?:-?)(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:-?)\d{4}))"
         for count, mcStatus in enumerate(masterList, start = 1):
             rank = mcStatus[0].split(' ')[0]
             folderName = mcStatus[0].replace(rank + " ", "") # remove rank from name
@@ -847,7 +847,7 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                                     start_date = "".join(tmp)
                             elif start_date == match[0]: 
                                 tmp = start_date.replace("-", "")
-                                tmp = start_date.replace("/", "")
+                                tmp = tmp.replace("/", "")
                                 tmp = tmp.replace("2023", "23")
                                 tmp = tmp.replace("2024", "24")
                                 tmp = tmp.replace("2025", "25")
@@ -876,7 +876,7 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                                     end_date = "".join(tmp)
                             elif end_date == match[3]: 
                                 tmp = end_date.replace("-", "")
-                                tmp = end_date.replace("/", "")
+                                tmp = tmp.replace("/", "")
                                 tmp = tmp.replace("2023", "23")
                                 tmp = tmp.replace("2024", "24")
                                 tmp = tmp.replace("2025", "25")
