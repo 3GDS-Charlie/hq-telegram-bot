@@ -74,7 +74,7 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
+ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
 
 masterUserRequests = dict()
 rateLimit = 1 # number of seconds between commands per user
@@ -1551,7 +1551,6 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
 
         time.sleep(2)
 
-reply_keyboard_all_commands = [["/checkmcstatus", "/checkconduct", "/checkall", "/updatedutygrp", "/updateconducttracking", "/generateIR"]]
 NORMAL_USER_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status files\n/checkconduct -> Conduct Tracking Updates\
 \n/generateIR -> Help to generate IR\n/gethaatrisk -> Get list of HA at risk personnel"
 ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status files\n/checkconduct -> Conduct Tracking Updates\
@@ -2412,10 +2411,10 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
-    send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
-    send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
-    send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
-    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
+    # send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
+    # send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
+    # send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
+    # send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
     
     response = supabase.table("profiles").select("*").execute()
     response = response.json()
