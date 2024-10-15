@@ -5,13 +5,11 @@ sudo chown ubuntu hq-telegram-bot/
 cd hq-telegram-bot
 sudo apt update
 sudo apt upgrade -y
-sudo snap install chromium
 sudo apt install software-properties-common -y
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update
 sudo apt install python3.10 -y
-sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1
-sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 2
+sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
 sudo update-alternatives --config python3
 curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
 sudo apt install tesseract-ocr -y
@@ -22,4 +20,6 @@ pip3 install scikit-learn
 sudo apt-get install poppler-utils -y
 sudo timedatectl set-timezone Asia/Singapore
 sed '/tensorflow-metal/d' requirements.txt | pip3 install -r /dev/stdin
+playwright install
+playwright install-deps
 screen -dmS my_script_session bash -c 'python3 main.py; exec bash'

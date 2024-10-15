@@ -16,11 +16,16 @@ import copy
 # PyDrive library has been depracated since 2021
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
-from google.oauth2 import service_account
+from google.oauth2.service_account import Credentials
 from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
-gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL, scopes=["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"])
+from google.auth.transport.requests import AuthorizedSession
+credentials = Credentials.from_service_account_info(SERVICE_ACCOUNT_CREDENTIAL, scopes = ["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"])
+session = AuthorizedSession(credentials)
+session.verify = False
+gc = gspread.authorize(credentials)
+# gc = gspread.service_account_from_dict(SERVICE_ACCOUNT_CREDENTIAL, scopes=["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"])
 
 # Telegram API
 import telegram
@@ -186,7 +191,7 @@ def insertConductTracking(conductDate: str, conductName: str, conductColumn: int
     conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
 
     startRow = 5
-    endRow = 128
+    endRow = 132
 
     def columnIndexToLetter(index):
         letter = ''
@@ -386,57 +391,57 @@ def insertConductTracking(conductDate: str, conductName: str, conductColumn: int
     ranges = [
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 17,
-            "endRowIndex": 18,
+            "startRowIndex": 20,
+            "endRowIndex": 21,
             "startColumnIndex": conductColumn-1,
             "endColumnIndex": conductColumn
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 17,
-            "endRowIndex": 18,
+            "startRowIndex": 20,
+            "endRowIndex": 21,
             "startColumnIndex": conductColumn,
             "endColumnIndex": conductColumn+1
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 41,
-            "endRowIndex": 42,
+            "startRowIndex": 44,
+            "endRowIndex": 45,
             "startColumnIndex": conductColumn-1,
             "endColumnIndex": conductColumn
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 41,
-            "endRowIndex": 42,
+            "startRowIndex": 44,
+            "endRowIndex": 45,
             "startColumnIndex": conductColumn,
             "endColumnIndex": conductColumn+1
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 66,
-            "endRowIndex": 67,
+            "startRowIndex": 69,
+            "endRowIndex": 70,
             "startColumnIndex": conductColumn-1,
             "endColumnIndex": conductColumn
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 66,
-            "endRowIndex": 67,
+            "startRowIndex": 69,
+            "endRowIndex": 70,
             "startColumnIndex": conductColumn,
             "endColumnIndex": conductColumn+1
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 92,
-            "endRowIndex": 93,
+            "startRowIndex": 95,
+            "endRowIndex": 96,
             "startColumnIndex": conductColumn-1,
             "endColumnIndex": conductColumn
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 92,
-            "endRowIndex": 93,
+            "startRowIndex": 95,
+            "endRowIndex": 96,
             "startColumnIndex": conductColumn,
             "endColumnIndex": conductColumn+1
         }
@@ -2411,10 +2416,10 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
-    send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
-    send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
-    send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
-    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
+    # send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
+    # send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
+    # send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
+    # send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
     
     response = supabase.table("profiles").select("*").execute()
     response = response.json()
