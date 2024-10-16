@@ -188,8 +188,11 @@ def convertTimestampToDatetime(timestamp, tzinfo=ZoneInfo("Asia/Singapore")):
 
 def insertConductTracking(conductDate: str, conductName: str, conductColumn: int):
     
+    sheet = None
     for attempt in range(5):
-        try: sheet = gc.open("Charlie Conduct Tracking")
+        try: 
+            sheet = gc.open("Charlie Conduct Tracking")
+            break
         except SSLError as e:
             if attempt < 4: time.sleep(5)
             else: raise e
@@ -493,9 +496,11 @@ def updateConductTracking(receiver_id = None):
                         futureEvents[startDateTime].append(i)
 
         changesMade = True
-
+        sheet = None
         for attempt in range(5):
-            try: sheet = gc.open("Charlie Conduct Tracking")
+            try: 
+                sheet = gc.open("Charlie Conduct Tracking")
+                break
             except SSLError as e:
                 if attempt < 4: time.sleep(5)
                 else: raise e
@@ -624,8 +629,11 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
     try:
         if send_whatsapp: greenAPI = API.GreenAPI(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
         # Get Coy MC/Status list from parade state
+        sheet = None
         for attempt in range(5):
-            try: sheet = gc.open("3GDS CHARLIE PARADE STATE")
+            try: 
+                sheet = gc.open("3GDS CHARLIE PARADE STATE")
+                break
             except SSLError as e:
                 if attempt < 4: time.sleep(5)
                 else: raise e
@@ -664,8 +672,11 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                 statusList.append((name, statusStartDates[index], (statusEndDates[index] if statusEndDates[index] != '' else '-'), platoonStatus[index], sectionStatus[index], "Status", statusReason[index]))
 
         # read existing MC/Status entries from mc lapse sheet
+        mcStatusLapseSheet = None
         for attempt in range(5):
-            try: mcStatusLapseSheet = gc.open("MC/Status Lapse Tracking")
+            try: 
+                mcStatusLapseSheet = gc.open("MC/Status Lapse Tracking")
+                break
             except SSLError as e:
                 if attempt < 4: time.sleep(5)
                 else: raise e
@@ -1082,8 +1093,11 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
 def checkConductTracking(receiver_id = None):
 
     try:
+        sheet = None
         for attempt in range(5):
-            try: sheet = gc.open("Charlie Conduct Tracking")
+            try: 
+                sheet = gc.open("Charlie Conduct Tracking")
+                break
             except SSLError as e:
                 if attempt < 4: time.sleep(5)
                 else: raise e
@@ -1278,8 +1292,11 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
 
 def autoCheckMA():
     try:
+        sheet = None
         for attempt in range(5):
-            try: sheet = gc.open("3GDS CHARLIE PARADE STATE")
+            try: 
+                sheet = gc.open("3GDS CHARLIE PARADE STATE")
+                break
             except SSLError as e:
                 if attempt < 4: time.sleep(5)
                 else: raise e
@@ -1383,8 +1400,11 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
     '''
     try:
         try: 
+            sheet = None
             for attempt in range(5):
-                try: sheet = gc.open("Charlie Conduct Tracking")
+                try: 
+                    sheet = gc.open("Charlie Conduct Tracking")
+                    break
                 except SSLError as e:
                     if attempt < 4: time.sleep(5)
                     else: raise e
@@ -1524,8 +1544,11 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
             allContacts = [person['Contact'] for person in charlieNominalRoll]
             nominalRollQ.put((charlieNominalRoll, allNames, allContacts))
 
+            sheet = None
             for attempt in range(5):
-                try: sheet = gc.open("Charlie Nominal Roll")
+                try: 
+                    sheet = gc.open("Charlie Nominal Roll")
+                    break
                 except SSLError as e:
                     if attempt < 4: time.sleep(5)
                     else: raise e
@@ -2462,8 +2485,11 @@ if __name__ == '__main__':
     allNames = [person['Name'] for person in charlieNominalRoll]
     allContacts = [person['Contact'] for person in charlieNominalRoll]
     
+    sheet = None
     for attempt in range(5):
-        try: sheet = gc.open("Charlie Nominal Roll")
+        try: 
+            sheet = gc.open("Charlie Nominal Roll")
+            break
         except SSLError as e:
             if attempt < 4: time.sleep(5)
             else: raise e
