@@ -1,6 +1,7 @@
 # General Libraries
 import csv
 import requests
+from requests.exceptions import SSLError
 import gc as garbageCollector
 import json
 import time
@@ -187,7 +188,11 @@ def convertTimestampToDatetime(timestamp, tzinfo=ZoneInfo("Asia/Singapore")):
 
 def insertConductTracking(conductDate: str, conductName: str, conductColumn: int):
     
-    sheet = gc.open("Charlie Conduct Tracking")
+    for attempt in range(5):
+        try: sheet = gc.open("Charlie Conduct Tracking")
+        except SSLError as e:
+            if attempt < 4: time.sleep(5)
+            else: raise e
     conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
 
     startRow = 5
@@ -488,8 +493,12 @@ def updateConductTracking(receiver_id = None):
                         futureEvents[startDateTime].append(i)
 
         changesMade = True
-    
-        sheet = gc.open("Charlie Conduct Tracking")
+
+        for attempt in range(5):
+            try: sheet = gc.open("Charlie Conduct Tracking")
+            except SSLError as e:
+                if attempt < 4: time.sleep(5)
+                else: raise e
         while changesMade:
             changesMade = False
             conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
@@ -615,7 +624,11 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
     try:
         if send_whatsapp: greenAPI = API.GreenAPI(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
         # Get Coy MC/Status list from parade state
-        sheet = gc.open("3GDS CHARLIE PARADE STATE")
+        for attempt in range(5):
+            try: sheet = gc.open("3GDS CHARLIE PARADE STATE")
+            except SSLError as e:
+                if attempt < 4: time.sleep(5)
+                else: raise e
         cCoySheet = sheet.worksheet("C COY")
         allValues = cCoySheet.get_all_values()
         allValues = list(zip(*allValues))
@@ -651,7 +664,11 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                 statusList.append((name, statusStartDates[index], (statusEndDates[index] if statusEndDates[index] != '' else '-'), platoonStatus[index], sectionStatus[index], "Status", statusReason[index]))
 
         # read existing MC/Status entries from mc lapse sheet
-        mcStatusLapseSheet = gc.open("MC/Status Lapse Tracking")
+        for attempt in range(5):
+            try: mcStatusLapseSheet = gc.open("MC/Status Lapse Tracking")
+            except SSLError as e:
+                if attempt < 4: time.sleep(5)
+                else: raise e
         mcLapse = mcStatusLapseSheet.worksheet("MC")
         allValues = mcLapse.get_all_values()
         allValues = list(zip(*allValues))
@@ -1065,7 +1082,11 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
 def checkConductTracking(receiver_id = None):
 
     try:
-        sheet = gc.open("Charlie Conduct Tracking")
+        for attempt in range(5):
+            try: sheet = gc.open("Charlie Conduct Tracking")
+            except SSLError as e:
+                if attempt < 4: time.sleep(5)
+                else: raise e
         conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
         allDates = conductTrackingSheet.row_values(2)
         currentDate = "{}{}{}".format(("0" + str(datetime.now().day)) if datetime.now().day < 10 else (str(datetime.now().day)), (("0" + str(datetime.now().month)) if datetime.now().month < 10 else (str(datetime.now().month))), str(datetime.now().year).replace("20", ""))
@@ -1257,7 +1278,11 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
 
 def autoCheckMA():
     try:
-        sheet = gc.open("3GDS CHARLIE PARADE STATE")
+        for attempt in range(5):
+            try: sheet = gc.open("3GDS CHARLIE PARADE STATE")
+            except SSLError as e:
+                if attempt < 4: time.sleep(5)
+                else: raise e
         paradeStateSheet = sheet.worksheet("C COY")
         allValues = paradeStateSheet.get_all_values()
         allValues = list(zip(*allValues))
@@ -1358,7 +1383,11 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
     '''
     try:
         try: 
-            sheet = gc.open("Charlie Conduct Tracking")
+            for attempt in range(5):
+                try: sheet = gc.open("Charlie Conduct Tracking")
+                except SSLError as e:
+                    if attempt < 4: time.sleep(5)
+                    else: raise e
             worksheets = sheet.worksheets()             
             conductTrackingSheet = next(ws for ws in worksheets if ws.title == "CONDUCT TRACKING")
             allValues = conductTrackingSheet.get_all_values()
@@ -1495,7 +1524,11 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
             allContacts = [person['Contact'] for person in charlieNominalRoll]
             nominalRollQ.put((charlieNominalRoll, allNames, allContacts))
 
-            sheet = gc.open("Charlie Nominal Roll")
+            for attempt in range(5):
+                try: sheet = gc.open("Charlie Nominal Roll")
+                except SSLError as e:
+                    if attempt < 4: time.sleep(5)
+                    else: raise e
             worksheets = sheet.worksheets()
             cCoyNominalRollSheet = next(ws for ws in worksheets if ws.title == "COMPANY ORBAT")
             allPerson = cCoyNominalRollSheet.get_all_values()
@@ -1770,7 +1803,7 @@ async def addmembernames(update: Update, context: CallbackContext) -> int:
         await update.message.reply_text("Unable to find {}. Please provide another name/number:".format(userInput))
         return ADD_TMP_MEMBER
     if len(allMatches) > 1: # more than one match found
-        reply_keyboard = [name[0] for name in allMatches]
+        reply_keyboard = [[name[0] for name in allMatches]]
         await update.message.reply_text(
             "Please specify the personnel involved:",
             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
@@ -2416,10 +2449,10 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
-    # send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
-    # send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
-    # send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
-    # send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
+    send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
+    send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
+    send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
+    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
     
     response = supabase.table("profiles").select("*").execute()
     response = response.json()
@@ -2429,7 +2462,11 @@ if __name__ == '__main__':
     allNames = [person['Name'] for person in charlieNominalRoll]
     allContacts = [person['Contact'] for person in charlieNominalRoll]
     
-    sheet = gc.open("Charlie Nominal Roll")
+    for attempt in range(5):
+        try: sheet = gc.open("Charlie Nominal Roll")
+        except SSLError as e:
+            if attempt < 4: time.sleep(5)
+            else: raise e
     worksheets = sheet.worksheets()
     googleSheetsNominalRoll = next(ws for ws in worksheets if ws.title == "COMPANY ORBAT")
     allPerson = googleSheetsNominalRoll.get_all_values()
