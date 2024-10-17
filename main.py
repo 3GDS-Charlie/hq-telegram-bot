@@ -1494,6 +1494,7 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
 
 def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetRequestsQ):
     # this function is executed in a separate process
+    # use it to execute automated functions
 
     greenAPI = API.GreenAPI(WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE)
     fpDateTime = None
@@ -1603,7 +1604,7 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
                     elif foundIndexes and date != currentDate and date != "": break
 
                 # for each conduct TODAY if any
-                tele_msg = "Hi all, please be reminded to update the conducts today in the conduct tracking sheet:"
+                tele_msg = "Hi all, please be reminded to update the conducts today in the conduct tracking sheet\nhttps://docs.google.com/spreadsheets/d/1TBHzKqmEHmyONaMQJoqt4HWwdsoY0pRSEv8WSoXDmyw/edit?gid=1000647342#gid=1000647342"
                 for index in colIndexes:
                     conductName = conductTrackingSheet.col_values(index)[3]
                     tele_msg = "\n".join([tele_msg, conductName])
@@ -1632,6 +1633,7 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
         except Exception as e:
             print("Encountered exception:\n{}".format(traceback.format_exc()))
             send_tele_msg("Encountered exception while trying to schedule CDS reminder:\n{}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
+        
         # there was a sent CET since the start of the bot
         if fpDateTime is not None:
             # send reminder during weekdays when it hits the FP date and time of sent CET
