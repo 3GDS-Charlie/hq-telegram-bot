@@ -37,6 +37,7 @@ import asyncio
 import nest_asyncio
 nest_asyncio.apply() # patch asyncio
 import multiprocessing
+multiprocessing.set_start_method("spawn", force=True)
 import threading
 MAX_MESSAGE_LENGTH = 4096
 
@@ -1611,7 +1612,6 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
                 if ENABLE_WHATSAPP_API and len(colIndexes) > 0: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
 
             except Exception as e:
-                print("Encountered exception trying to send update conduct tracking reminder:\n{}".format(traceback.format_exc()))
                 send_tele_msg("Encountered exception trying to send update conduct tracking reminder:\n{}".format(traceback.format_exc()))
 
             conductTrackingReminder = True
