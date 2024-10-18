@@ -1040,8 +1040,8 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                 cellUpdates.append(gspread.cell.Cell(index, 6, mc[6]))
                 cellUpdates.append(gspread.cell.Cell(index, 7, mc[7]))
 
-                if mc in possibleMcList: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {} (Possible MC found)\n{}\n{}\n".format(mc[1], mc[2], mc[6], mc[7])])
-                else: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n{}\n".format(mc[1], mc[2], mc[6], mc[7])])
+                if mc in possibleMcList: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {} (Possible MC found)\n{}\n".format(mc[1], mc[2], mc[7])])
+                else: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n".format(mc[1], mc[2], mc[7])])
                 if len(tele_msg) > MAX_MESSAGE_LENGTH-1000:
                     send_tele_msg(tele_msg, receiver_id=receiver_id)
                     if send_whatsapp: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
