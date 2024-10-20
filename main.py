@@ -1583,7 +1583,6 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
 
         # send reminder to update conduct tracking sheet if any activites were done for the day
         if not conductTrackingReminder and datetime.now().hour == 20 and datetime.now().minute == 0: 
-            send_tele_msg("Sending conduct tracking reminder to WhatsApp if any", receiver_id="SUPERUSERS")
             try:
                 sheet = None
                 for attempt in range(5):
@@ -1609,7 +1608,9 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
                 for index in colIndexes:
                     conductName = conductTrackingSheet.col_values(index)[3]
                     tele_msg = "\n".join([tele_msg, conductName])
-                if ENABLE_WHATSAPP_API and len(colIndexes) > 0: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+                if ENABLE_WHATSAPP_API and len(colIndexes) > 0: 
+                    send_tele_msg("Sending conduct tracking reminder to WhatsApp", receiver_id="SUPERUSERS")
+                    response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
 
             except Exception as e:
                 send_tele_msg("Encountered exception trying to send update conduct tracking reminder:\n{}".format(traceback.format_exc()))
