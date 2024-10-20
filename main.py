@@ -200,7 +200,7 @@ def insertConductTracking(conductDate: str, conductName: str, conductColumn: int
     conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
 
     startRow = 5
-    endRow = 132
+    endRow = 137
 
     def columnIndexToLetter(index):
         letter = ''
