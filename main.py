@@ -2558,11 +2558,13 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
+    updateNotes = "Added in new PC numbers and whitelisted for duty group"
     send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
     send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
     send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
     send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
-    
+    send_tele_msg("*UPDATE NOTES\\:*\n{}".format(updateNotes), parseMode="MarkdownV2")
+
     response = supabase.table("profiles").select("*").execute()
     response = response.json()
     response = response.replace('rank', 'Rank').replace('name', 'Name').replace('platoon', 'Platoon').replace('section', 'Section').replace('email', 'Email').replace('contact', 'Contact').replace('appointment', 'Appointment').replace('duty_points', 'Duty points').replace('ration', 'Ration').replace('shirt_size', 'Shirt Size').replace('pants_size', 'Pants Size').replace('pes', 'PES')
