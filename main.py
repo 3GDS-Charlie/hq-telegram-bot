@@ -1031,14 +1031,36 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
             lapseMcList = sorted(lapseMcList, key=lambda x: datetime.strptime(x[1], "%d %b %y"), reverse=True)
             tele_msg = "Missing MC files:"
             cellUpdates = list()
-            for index, mc in enumerate(lapseMcList, start = 2):
-                cellUpdates.append(gspread.cell.Cell(index, 1, mc[0]))
-                cellUpdates.append(gspread.cell.Cell(index, 2, mc[1]))
-                cellUpdates.append(gspread.cell.Cell(index, 3, mc[2]))
-                cellUpdates.append(gspread.cell.Cell(index, 4, mc[3]))
-                cellUpdates.append(gspread.cell.Cell(index, 5, mc[4]))
-                cellUpdates.append(gspread.cell.Cell(index, 6, mc[6]))
-                cellUpdates.append(gspread.cell.Cell(index, 7, mc[7]))
+            index = 2
+            for mc in lapseMcList:
+                startDate = mc[1]
+                tmp = startDate.split(' ')
+                try: tmp[1] = monthConversion[tmp[1]] # convert MMM to MM
+                except IndexError: 
+                    send_tele_msg("Unable to perform month conversion for {}".format(mc[1]))
+                    raise IndexError
+                startDate = ''.join(tmp)
+                startDate = datetime.strptime(startDate, "%d%m%y")
+                if mc[2] != "-": 
+                    endDate = mc[2]
+                    tmp = endDate.split(' ')
+                    try: tmp[1] = monthConversion[tmp[1]] # convert MMM to MM
+                    except IndexError: 
+                        send_tele_msg("Unable to perform month conversion for {}".format(mc[1]))
+                        raise IndexError
+                    endDate = ''.join(tmp)
+                    endDate = datetime.strptime(endDate, "%d%m%y")
+                else: endDate = None
+                if startDate < datetime.now()+timedelta(days=7) and startDate > datetime.now()-timedelta(days=365):
+                    if endDate is None or (endDate < datetime.now()+timedelta(days=365) and endDate > datetime.now()-timedelta(days=365)):
+                        cellUpdates.append(gspread.cell.Cell(index, 1, mc[0]))
+                        cellUpdates.append(gspread.cell.Cell(index, 2, mc[1]))
+                        cellUpdates.append(gspread.cell.Cell(index, 3, mc[2]))
+                        cellUpdates.append(gspread.cell.Cell(index, 4, mc[3]))
+                        cellUpdates.append(gspread.cell.Cell(index, 5, mc[4]))
+                        cellUpdates.append(gspread.cell.Cell(index, 6, mc[6]))
+                        cellUpdates.append(gspread.cell.Cell(index, 7, mc[7]))
+                        index += 1
 
                 if mc in possibleMcList: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {} (Possible MC found)\n{}\n".format(mc[1], mc[2], mc[7])])
                 else: tele_msg = "\n".join([tele_msg, "{}".format(mc[0]) + ((" (P{}S{})".format(mc[3], mc[4])) if mc[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n".format(mc[1], mc[2], mc[7])])
@@ -1046,7 +1068,7 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                     send_tele_msg(tele_msg, receiver_id=receiver_id)
                     if send_whatsapp: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
                     tele_msg = "Missing MC files:"
-            mcLapse.update_cells(cellUpdates)
+            if len(cellUpdates) > 0: mcLapse.update_cells(cellUpdates)
             send_tele_msg(tele_msg, receiver_id=receiver_id)
             if send_whatsapp: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
         
@@ -1055,14 +1077,36 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
             lapseStatusList = sorted(lapseStatusList, key=lambda x: datetime.strptime(x[1], "%d %b %y"), reverse=True)
             tele_msg = "Missing status files:"
             cellUpdates = list()
-            for index, status in enumerate(lapseStatusList, start = 2):
-                cellUpdates.append(gspread.cell.Cell(index, 1, status[0]))
-                cellUpdates.append(gspread.cell.Cell(index, 2, status[1]))
-                cellUpdates.append(gspread.cell.Cell(index, 3, status[2]))
-                cellUpdates.append(gspread.cell.Cell(index, 4, status[3]))
-                cellUpdates.append(gspread.cell.Cell(index, 5, status[4]))
-                cellUpdates.append(gspread.cell.Cell(index, 6, status[6]))
-                cellUpdates.append(gspread.cell.Cell(index, 7, status[7]))
+            index = 2
+            for status in lapseStatusList:
+                startDate = status[1]
+                tmp = startDate.split(' ')
+                try: tmp[1] = monthConversion[tmp[1]] # convert MMM to MM
+                except IndexError: 
+                    send_tele_msg("Unable to perform month conversion for {}".format(status[1]))
+                    raise IndexError
+                startDate = ''.join(tmp)
+                startDate = datetime.strptime(startDate, "%d%m%y")
+                if status[2] != "-": 
+                    endDate = status[2]
+                    tmp = endDate.split(' ')
+                    try: tmp[1] = monthConversion[tmp[1]] # convert MMM to MM
+                    except IndexError: 
+                        send_tele_msg("Unable to perform month conversion for {}".format(status[1]))
+                        raise IndexError
+                    endDate = ''.join(tmp)
+                    endDate = datetime.strptime(endDate, "%d%m%y")
+                else: endDate = None
+                if startDate < datetime.now()+timedelta(days=7) and startDate > datetime.now()-timedelta(days=365):
+                    if endDate is None or (endDate < datetime.now()+timedelta(days=365) and endDate > datetime.now()-timedelta(days=365)):
+                        cellUpdates.append(gspread.cell.Cell(index, 1, status[0]))
+                        cellUpdates.append(gspread.cell.Cell(index, 2, status[1]))
+                        cellUpdates.append(gspread.cell.Cell(index, 3, status[2]))
+                        cellUpdates.append(gspread.cell.Cell(index, 4, status[3]))
+                        cellUpdates.append(gspread.cell.Cell(index, 5, status[4]))
+                        cellUpdates.append(gspread.cell.Cell(index, 6, status[6]))
+                        cellUpdates.append(gspread.cell.Cell(index, 7, status[7]))
+                        index += 1
 
                 if status in possibleStatusList: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {} (Possible status found)\n{}\n{}\n".format(status[1], status[2], status[6], status[7])])
                 else: tele_msg = "\n".join([tele_msg, "{}".format(status[0]) + ((" (P{}S{})".format(status[3], status[4])) if status[3] != "HQ" else (" (HQ)")), "{} - {}\n{}\n{}\n".format(status[1], status[2], status[6], status[7])])
@@ -1070,7 +1114,7 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                     send_tele_msg(tele_msg, receiver_id=receiver_id)
                     if send_whatsapp: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
                     tele_msg = "Missing status files:"
-            statusLapse.update_cells(cellUpdates)
+            if len(cellUpdates) > 0: statusLapse.update_cells(cellUpdates)
             send_tele_msg(tele_msg, receiver_id=receiver_id)
             if send_whatsapp: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
     
