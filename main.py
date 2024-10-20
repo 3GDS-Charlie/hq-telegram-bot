@@ -1648,10 +1648,11 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
                     elif foundIndexes and date != currentDate and date != "": break
 
                 # for each conduct TODAY if any
-                tele_msg = "Hi all, please be reminded to update the conducts today in the conduct tracking sheet\nhttps://docs.google.com/spreadsheets/d/1TBHzKqmEHmyONaMQJoqt4HWwdsoY0pRSEv8WSoXDmyw/edit?gid=1000647342#gid=1000647342"
+                tele_msg = "Hi all, please be reminded to update the conducts today in the conduct tracking sheet:"
                 for index in colIndexes:
                     conductName = conductTrackingSheet.col_values(index)[3]
                     tele_msg = "\n".join([tele_msg, conductName])
+                tele_msg = "\n".join([tele_msg, "https://docs.google.com/spreadsheets/d/1TBHzKqmEHmyONaMQJoqt4HWwdsoY0pRSEv8WSoXDmyw/edit?gid=1000647342#gid=1000647342"])
                 if ENABLE_WHATSAPP_API and len(colIndexes) > 0: 
                     send_tele_msg("Sending conduct tracking reminder to WhatsApp", receiver_id="SUPERUSERS")
                     response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
@@ -2558,12 +2559,12 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
-    updateNotes = "Added in new PC numbers and whitelisted for duty group"
-    send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
-    send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
-    send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
-    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
-    send_tele_msg("*UPDATE NOTES\\:*\n{}".format(updateNotes), parseMode="MarkdownV2")
+    # updateNotes = "Added in new PC numbers and whitelisted for duty group"
+    # send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
+    # send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
+    # send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
+    # send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
+    # send_tele_msg("*UPDATE NOTES\\:*\n{}".format(updateNotes), parseMode="MarkdownV2")
 
     response = supabase.table("profiles").select("*").execute()
     response = response.json()
