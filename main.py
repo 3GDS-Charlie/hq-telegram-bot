@@ -2559,7 +2559,7 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
-    # updateNotes = "Added Y2 PC HQ as super user."
+    updateNotes = "Added Y2 PC HQ as super user."
     # send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
     # send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
     # send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
