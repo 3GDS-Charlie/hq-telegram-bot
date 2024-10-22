@@ -200,7 +200,7 @@ def insertConductTracking(conductDate: str, conductName: str, conductColumn: int
     conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
 
     startRow = 5
-    endRow = 137
+    endRow = 139
 
     def columnIndexToLetter(index):
         letter = ''
@@ -1626,7 +1626,7 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
         elif datetime.now().hour == 6 and datetime.now().minute != 0: Daily = False
 
         # send reminder to update conduct tracking sheet if any activites were done for the day
-        if not conductTrackingReminder and datetime.now().hour == 20 and datetime.now().minute == 0: 
+        if not conductTrackingReminder and datetime.now().hour == 21 and datetime.now().minute == 0: 
             try:
                 sheet = None
                 for attempt in range(5):
@@ -1662,7 +1662,7 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
 
             conductTrackingReminder = True
         
-        elif datetime.now().hour == 20 and datetime.now().minute != 0: conductTrackingReminder = False
+        elif datetime.now().hour == 21 and datetime.now().minute != 0: conductTrackingReminder = False
 
         try: # Auto reminding of CDS to send report sick parade state every morning 
             while not cetQ.empty(): 
@@ -2559,12 +2559,12 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
-    updateNotes = "Added Y2 PC HQ as super user."
-    send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
-    send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
-    send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
-    send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
-    send_tele_msg("*UPDATE NOTES\\:*\n{}".format(updateNotes), parseMode="MarkdownV2")
+    # updateNotes = "Added Y2 PC HQ as super user."
+    # send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
+    # send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
+    # send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
+    # send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
+    # send_tele_msg("*UPDATE NOTES\\:*\n{}".format(updateNotes), parseMode="MarkdownV2")
 
     response = supabase.table("profiles").select("*").execute()
     response = response.json()
