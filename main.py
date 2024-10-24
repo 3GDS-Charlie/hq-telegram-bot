@@ -1519,7 +1519,7 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
                     numActivities = 2
                     for date in conductDates: 
                         # only require one more activity
-                        if date > haMaintainedDate and date < currentDate: 
+                        if date > haMaintainedDate and date <= currentDate: 
                             numActivities = 1
                             break
                     latestDate = haMaintainedDate+timedelta(days=13)
