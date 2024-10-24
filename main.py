@@ -9,6 +9,7 @@ import gspread
 import platform
 from gspread_formatting import *
 from datetime import datetime, timedelta
+from collections import Counter
 from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS, SUPERUSERS, DUTY_GRP_ID, CHARLIE_Y2_ID, WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE, SUPABASE_URL, SUPABASE_KEY, SUPBASE_BACKUP_DRIVE_ID, CHARLIE_DUTY_CMDS, PERM_DUTY_CMDS, TIMETREE_USERNAME, TIMETREE_PASSWORD, TIMETREE_CALENDAR_ID
 import traceback
 import copy
@@ -1026,6 +1027,8 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
         # write lapsed mc/status list to mc/status lapse tracking sheet
         mcLapse.batch_clear(['A2:G1000'])
         statusLapse.batch_clear(['A2:G1000'])
+        if send_whatsapp and (len(lapseMcList) > 0 or len(lapseStatusList) > 0):
+            send_tele_msg("Sending MC & Status Lapses to WhatsApp", receiver_id="SUPERUSERS")
         if len(lapseMcList) == 0: send_tele_msg("No missing MC files", receiver_id=receiver_id)
         else:
             lapseMcList = sorted(lapseMcList, key=lambda x: datetime.strptime(x[1], "%d %b %y"), reverse=True)
@@ -1520,8 +1523,13 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
                             numActivities = 1
                             break
                     latestDate = haMaintainedDate+timedelta(days=13)
-                    if numActivities == 2: atRiskPersonnel.append((namesColumn[row], "{} activities latest by {}".format(numActivities, latestDate.strftime("%d%m%y"))))
-                    else: atRiskPersonnel.append((namesColumn[row], "{} activity latest by {}".format(numActivities, latestDate.strftime("%d%m%y"))))
+                    if row >= 4 and row <= 20: platoon = "HQ"
+                    elif row >= 21 and row <= 44: platoon = "7"
+                    elif row >= 45 and row <= 69: platoon = "8"
+                    elif row >= 70 and row <= 95: platoon = "9"
+                    else: platoon = "COMMANDERS"
+                    if numActivities == 2: atRiskPersonnel.append((namesColumn[row], platoon, "{} activities latest by {}".format(numActivities, latestDate.strftime("%d%m%y"))))
+                    else: atRiskPersonnel.append((namesColumn[row], platoon, "{} activity latest by {}".format(numActivities, latestDate.strftime("%d%m%y"))))
                 else: # HA maintained with more than 7 days validity
                     cellsUpdate.append(gspread.cell.Cell(row+1, 4, "YES"))
 
@@ -1579,7 +1587,6 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
             tmpCmdsQ.put(tmpDutyCmdsDict)
             send_tele_msg("Checking for missing MC and Status files. This might take a while.")
             checkMcStatus(send_whatsapp=ENABLE_WHATSAPP_API)
-            if ENABLE_WHATSAPP_API: send_tele_msg("Sending MC & Status Lapses to WhatsApp if any", receiver_id="SUPERUSERS")
             
             # updating charlie nominal roll in memory once per day
             response = supabase.table("profiles").select("*").execute()
@@ -1609,9 +1616,37 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
                 while not haQ.empty():
                     atRiskPersonnel = haQ.get()
             haQ.put(atRiskPersonnel)
+            priority_order = ['HQ', '7', '8', '9', 'COMMANDERS']
+            atRiskPersonnel = sorted(atRiskPersonnel, key=lambda x: priority_order.index(x[1]))
+            count_by_type = Counter([x[1] for x in atRiskPersonnel])
+            numHQ = count_by_type.get("HQ", 0)
+            num7 = count_by_type.get("7", 0)
+            num8 = count_by_type.get("8", 0)
+            num9 = count_by_type.get("9", 0)
+            numCOMD = count_by_type.get("COMMANDERS", 0)
             tele_msg = "HA At Risk:"
-            for person, details in atRiskPersonnel:
-                tele_msg = "\n".join([tele_msg, "{} - {}".format(person, details)])
+            startHQ = False
+            start7 = False
+            start8 = False
+            start9 = False
+            startCOMD = False
+            for person, platoon, details in atRiskPersonnel:
+                if not startHQ and numHQ > 0 and platoon == "HQ":
+                    tele_msg = "\n\n".join([tele_msg, "Coy HQ: ({})".format(numHQ)])
+                    startHQ = True
+                if not start7 and num7 > 0 and platoon == "7":
+                    tele_msg = "\n\n".join([tele_msg, "P7: ({})".format(num7)])
+                    start7 = True
+                if not start8 and num8 > 0 and platoon == "8":
+                    tele_msg = "\n\n".join([tele_msg, "P8: ({})".format(num8)])
+                    start8 = True
+                if not start9 and num9 > 0 and platoon == "9":
+                    tele_msg = "\n\n".join([tele_msg, "P9: ({})".format(num9)])
+                    start9 = True
+                if not startCOMD and numCOMD > 0 and platoon == "COMMANDERS":
+                    tele_msg = "\n\n".join([tele_msg, "COMMANDERS: ({})".format(numCOMD)])
+                    startCOMD = True
+                tele_msg = "\n".join([tele_msg, "{}\n{}\n".format(person, details)])
                 if len(tele_msg) > MAX_MESSAGE_LENGTH-2000:
                     send_tele_msg(tele_msg)
                     if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
@@ -2005,8 +2040,36 @@ async def gethaatrisk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 while not haQueue.empty():
                     atRiskPersonnel = haQueue.get()
             haQueue.put(atRiskPersonnel)
+            priority_order = ['HQ', '7', '8', '9', 'COMMANDERS']
+            atRiskPersonnel = sorted(atRiskPersonnel, key=lambda x: priority_order.index(x[1]))
+            count_by_type = Counter([x[1] for x in atRiskPersonnel])
+            numHQ = count_by_type.get("HQ", 0)
+            num7 = count_by_type.get("7", 0)
+            num8 = count_by_type.get("8", 0)
+            num9 = count_by_type.get("9", 0)
+            numCOMD = count_by_type.get("COMMANDERS", 0)
             tele_msg = "HA At Risk:"
-            for person, details in atRiskPersonnel:
+            startHQ = False
+            start7 = False
+            start8 = False
+            start9 = False
+            startCOMD = False
+            for person, platoon, details in atRiskPersonnel:
+                if not startHQ and numHQ > 0 and platoon == "HQ":
+                    tele_msg = "\n\n".join([tele_msg, "Coy HQ: ({})".format(numHQ)])
+                    startHQ = True
+                if not start7 and num7 > 0 and platoon == "7":
+                    tele_msg = "\n\n".join([tele_msg, "P7: ({})".format(num7)])
+                    start7 = True
+                if not start8 and num8 > 0 and platoon == "8":
+                    tele_msg = "\n\n".join([tele_msg, "P8: ({})".format(num8)])
+                    start8 = True
+                if not start9 and num9 > 0 and platoon == "9":
+                    tele_msg = "\n\n".join([tele_msg, "P9: ({})".format(num9)])
+                    start9 = True
+                if not startCOMD and numCOMD > 0 and platoon == "COMMANDERS":
+                    tele_msg = "\n\n".join([tele_msg, "COMMANDERS: ({})".format(numCOMD)])
+                    startCOMD = True
                 tele_msg = "\n".join([tele_msg, "{}\n{}\n".format(person, details)])
                 if len(tele_msg) > MAX_MESSAGE_LENGTH-2000:
                     send_tele_msg(tele_msg, receiver_id=str(update.effective_user.id))
@@ -2136,7 +2199,7 @@ async def name(update: Update, context: CallbackContext) -> int:
             reply_markup=telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True))
         return CHECK_PES
     if context.user_data['findingName'] or context.user_data['checkingName']: return await location(update, context)
-    await update.message.reply_text("Please provide the date and time of the incident (e.g. {}):".format(datetime.now().strftime('%d%m%y %H%M')))
+    await update.message.reply_text("Please provide the date and time of the incident (Current date & time: {}):".format(datetime.now().strftime('%d%m%y %H%M')))
     return DATE_TIME
 
 async def checkPes(update: Update, context: CallbackContext) -> int:
@@ -2148,7 +2211,7 @@ async def checkPes(update: Update, context: CallbackContext) -> int:
             return CHECK_PES
         context.user_data['name']['PES'] = pes
     if context.user_data['findingName'] or context.user_data['checkingName']: return await location(update, context)
-    await update.message.reply_text("Please provide the date and time of the incident (e.g. {}):".format(datetime.now().strftime('%d%m%y %H%M')))
+    await update.message.reply_text("Please provide the date and time of the incident (Current date & time: {}):".format(datetime.now().strftime('%d%m%y %H%M')))
     return DATE_TIME
 
 async def date_time(update: Update, context: CallbackContext) -> int:
@@ -2454,6 +2517,7 @@ ASIS Report - No\n\
         reportingPerson['Rank'], reportingPerson['Name'],
         reportingPerson['Contact'][:4], reportingPerson['Contact'][-4:]))
     await update.message.reply_text("Copy and paste the generated IR to WhatsApp")
+    if nric == "Unknown NRIC": await update.message.reply_text("NOTE: NRIC of {} {} is unknown".format(context.user_data['name']['Rank'], context.user_data['name']['Name']))
     return ConversationHandler.END
 
 async def cancel_ir(update: Update, context: CallbackContext) -> int:
@@ -2559,7 +2623,7 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
-    updateNotes = "Added Y2 PC HQ as super user."
+    updateNotes = "Added Y2 PC HQ as super user"
     # send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
     # send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
     # send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
