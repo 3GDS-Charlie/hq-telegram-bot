@@ -72,7 +72,9 @@ CHARLIE_DUTY_CMDS = [os.getenv("ZEYEUNG_NUMBER"),
                      os.getenv("KERWIN_NUMBER"), 
                      os.getenv("NAWFAL_NUMBER"), 
                      os.getenv("SKY_NUMBER"), 
-                     os.getenv("SRIRAM_NUMBER")]
+                     os.getenv("SRIRAM_NUMBER"),
+                     os.getenv("CLOVIS_NUMBER"),
+                     os.getenv("CHEEHENG_NUMBER")]
 
 # 4 PS + PC + 2 HQ Spec
 PERM_DUTY_CMDS = [os.getenv("ZEYEUNG_NUMBER"), 

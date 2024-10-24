@@ -1283,16 +1283,16 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
         foundPDS8 = False
         foundPDS9 = False
         for person in charlieNominalRoll:
-            if CDS in person['Name'].upper() and person['Contact'] in CHARLIE_DUTY_CMDS: 
+            if CDS in person['Name'].replace(" ", "").upper() and person['Contact'] in CHARLIE_DUTY_CMDS: 
                 nextDutyCmds.append(person['Contact'])
                 foundCDS = True
-            elif PDS7 in person['Name'].upper() and person['Contact'] in CHARLIE_DUTY_CMDS: 
+            elif PDS7 in person['Name'].replace(" ", "").upper() and person['Contact'] in CHARLIE_DUTY_CMDS: 
                 nextDutyCmds.append(person['Contact'])
                 foundPDS7 = True
-            elif PDS8 in person['Name'].upper() and person['Contact'] in CHARLIE_DUTY_CMDS: 
+            elif PDS8 in person['Name'].replace(" ", "").upper() and person['Contact'] in CHARLIE_DUTY_CMDS: 
                 nextDutyCmds.append(person['Contact'])
                 foundPDS8 = True
-            elif PDS9 in person['Name'].upper() and person['Contact'] in CHARLIE_DUTY_CMDS: 
+            elif PDS9 in person['Name'].replace(" ", "").upper() and person['Contact'] in CHARLIE_DUTY_CMDS: 
                 nextDutyCmds.append(person['Contact'])
                 foundPDS9 = True
             if foundCDS and foundPDS7 and foundPDS8 and foundPDS9: break
