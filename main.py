@@ -1442,7 +1442,7 @@ async def backupcharlienominalroll(update: Update, context: ContextTypes.DEFAULT
         await update.message.reply_text("You are not authorised to use this telegram bot. Contact Charlie HQ specs for any issues.")
         return ConversationHandler.END
 
-def conductTrackingFactory(haQ, oldCellsUpdate = None):
+def conductTrackingFactory(haQ, service, oldCellsUpdate = None):
     '''
         :param oldCellsUpdate (list): The old list of cell updates to the sheet. To determine if there is a need to update the sheet again 
     '''
@@ -1464,6 +1464,7 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
             namesColumn = formattedAllValues[1]
             allHA = dict()
             cellsUpdate = list()
+            cellRequests = list()
             foundHeader = False
             for index, row in enumerate(haBuiltUpColumn, start = 0):
                 if row == 'HA BUILT UP': 
@@ -1473,6 +1474,7 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
                 if row == 'TRUE': allHA[index] = list() # HA BUILT UP
                 elif row == "FALSE": # HA NOT BUILT UP
                     cellsUpdate.append(gspread.cell.Cell(index+1, 4, ""))
+                    cellsUpdate.append(gspread.cell.Cell(index+1, 5, ""))
                 else: break
                 endingRow = index
 
@@ -1511,9 +1513,10 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
                     if index == 0: continue
                     if date-conductDates[index-1] <= timedelta(days=7): # 2 conducts within 7 days
                         haMaintainedDate = date+timedelta(days=1)
-
+                
                 if haMaintainedDate is None or currentDate - haMaintainedDate > timedelta(days=13): # no 2 conducts within 7 days in the past 14 days = HA broke
                     cellsUpdate.append(gspread.cell.Cell(row+1, 4, "NO"))
+                    cellsUpdate.append(gspread.cell.Cell(row+1, 5, ""))
                 elif currentDate - haMaintainedDate > timedelta(days=6): # ha maintained but last maintained HA activity is more than 7 days ago
                     cellsUpdate.append(gspread.cell.Cell(row+1, 4, "AT RISK"))
                     numActivities = 2
@@ -1523,6 +1526,55 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
                             numActivities = 1
                             break
                     latestDate = haMaintainedDate+timedelta(days=13)
+                    cellsUpdate.append(gspread.cell.Cell(row+1, 5, str(latestDate)))
+                    if currentDate-haMaintainedDate >= timedelta(days=11): # red colour
+                        cellRequests.append({
+                            "updateCells": {
+                                "range": {
+                                    "sheetId": conductTrackingSheet.id,  # Sheet ID, use the gspread object to get the ID
+                                    "startRowIndex": row,
+                                    "endRowIndex": row+1,
+                                    "startColumnIndex": 4,
+                                    "endColumnIndex": 5
+                                },
+                                "rows": [{
+                                    "values": [{
+                                        "userEnteredFormat": {
+                                            "backgroundColor": {
+                                                "red": 0.92, 
+                                                "green": 0.27,
+                                                "blue": 0.2
+                                            }
+                                        }
+                                    }]
+                                }],
+                                "fields": "userEnteredFormat.backgroundColor"
+                            }
+                        })
+                    else: # orange colour
+                        cellRequests.append({
+                            "updateCells": {
+                                "range": {
+                                    "sheetId": conductTrackingSheet.id,  # Sheet ID, use the gspread object to get the ID
+                                    "startRowIndex": row,
+                                    "endRowIndex": row+1,
+                                    "startColumnIndex": 4,
+                                    "endColumnIndex": 5
+                                },
+                                "rows": [{
+                                    "values": [{
+                                        "userEnteredFormat": {
+                                            "backgroundColor": {
+                                                "red": 0.98, 
+                                                "green": 0.73,
+                                                "blue": 0.02
+                                            }
+                                        }
+                                    }]
+                                }],
+                                "fields": "userEnteredFormat.backgroundColor"
+                            }
+                        })
                     if row >= 4 and row <= 20: platoon = "HQ"
                     elif row >= 21 and row <= 44: platoon = "7"
                     elif row >= 45 and row <= 69: platoon = "8"
@@ -1532,13 +1584,41 @@ def conductTrackingFactory(haQ, oldCellsUpdate = None):
                     else: atRiskPersonnel.append((namesColumn[row], platoon, "{} activity latest by {}".format(numActivities, latestDate.strftime("%d%m%y"))))
                 else: # HA maintained with more than 7 days validity
                     cellsUpdate.append(gspread.cell.Cell(row+1, 4, "YES"))
+                    latestDate = haMaintainedDate+timedelta(days=13)
+                    cellsUpdate.append(gspread.cell.Cell(row+1, 5, str(latestDate)))
+                    cellRequests.append({
+                        "updateCells": {
+                            "range": {
+                                "sheetId": conductTrackingSheet.id,  # Sheet ID, use the gspread object to get the ID
+                                "startRowIndex": row,
+                                "endRowIndex": row+1,
+                                "startColumnIndex": 4,
+                                "endColumnIndex": 5
+                            },
+                            "rows": [{
+                                "values": [{
+                                    "userEnteredFormat": {
+                                        "backgroundColor": {
+                                            "red": 0.20, 
+                                            "green": 0.65,
+                                            "blue": 0.33
+                                        }
+                                    }
+                                }]
+                            }],
+                            "fields": "userEnteredFormat.backgroundColor"
+                        }
+                    })
 
             while not haQ.empty(): haQ.get()
             haQ.put(atRiskPersonnel)
             # only update sheet if there is a need to
             if (oldCellsUpdate is None or 
-                (oldCellsUpdate is not None and oldCellsUpdate != cellsUpdate)): conductTrackingSheet.update_cells(cellsUpdate)
-            return cellsUpdate
+                (oldCellsUpdate is not None and oldCellsUpdate != cellsUpdate)): 
+                conductTrackingSheet.update_cells(cellsUpdate)
+                body = {'requests': cellRequests}
+                response = service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
+                return cellsUpdate
         except (requests.exceptions.JSONDecodeError, gspread.exceptions.APIError): # google API gave up momentarily
             return oldCellsUpdate
     except Exception as e:
@@ -1558,6 +1638,8 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
     oldCellsUpdate = None
     atRiskPersonnel = None
     weekDay = [1, 2, 3, 4, 5]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/spreadsheets'])
+    service = build('sheets', 'v4', credentials=creds)
     while True:
 
         # Auto updating of MC Lapses and MAs everyday at 0600
@@ -1730,7 +1812,7 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
         elif datetime.now().day != 1: backedupSupabase = False
 
         # update conduct tracking sheet
-        oldCellsUpdate = conductTrackingFactory(haQ, oldCellsUpdate)
+        oldCellsUpdate = conductTrackingFactory(haQ, service, oldCellsUpdate)
 
         time.sleep(2)
 
