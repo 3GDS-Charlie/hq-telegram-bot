@@ -401,15 +401,15 @@ def insertConductTracking(conductDate: str, conductName: str, conductColumn: int
     ranges = [
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 19,
-            "endRowIndex": 20,
+            "startRowIndex": 18,
+            "endRowIndex": 19,
             "startColumnIndex": conductColumn-1,
             "endColumnIndex": conductColumn
         },
         {
             "sheetId": conductTrackingSheet.id, 
-            "startRowIndex": 19,
-            "endRowIndex": 20,
+            "startRowIndex": 18,
+            "endRowIndex": 19,
             "startColumnIndex": conductColumn,
             "endColumnIndex": conductColumn+1
         },
