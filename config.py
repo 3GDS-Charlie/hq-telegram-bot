@@ -40,7 +40,8 @@ CHANNEL_IDS = {
     "KEI_LOK": os.getenv("TELEGRAM_CHANNEL_ID_KEI_LOK"),
     "LIANG_DING": os.getenv("TELEGRAM_CHANNEL_ID_LIANG_DING"),
     "PATRICK": os.getenv("TELEGRAM_CHANNEL_ID_PATRICK"),
-    "SOLAI": os.getenv("TELEGRAM_CHANNEL_ID_SOLAI")
+    "SOLAI": os.getenv("TELEGRAM_CHANNEL_ID_SOLAI"),
+    "AJ": os.getenv("TELEGRAM_CHANNEL_ID_AJ")
 }
 
 # WhatsApp related APIs
@@ -74,7 +75,9 @@ CHARLIE_DUTY_CMDS = [os.getenv("ZEYEUNG_NUMBER"),
                      os.getenv("SKY_NUMBER"), 
                      os.getenv("SRIRAM_NUMBER"),
                      os.getenv("CLOVIS_NUMBER"),
-                     os.getenv("CHEEHENG_NUMBER")]
+                     os.getenv("CHEEHENG_NUMBER"),
+                     os.getenv("GIDEON_NUMBER"),
+                     os.getenv("AMAN_NUMBER")]
 
 # 4 PS + PC + 2 HQ Spec
 PERM_DUTY_CMDS = [os.getenv("ZEYEUNG_NUMBER"), 
