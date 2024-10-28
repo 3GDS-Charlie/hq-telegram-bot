@@ -1271,6 +1271,7 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
         send_tele_msg("Failed to retrieve group data: {}\nAborting updating duty group.".format(response.json()), receiver_id="SUPERUSERS")
         group_data = None
         return
+    sendCET = True
     if group_data is not None: 
         response = supabase.table("profiles").select("*").execute()
         response = response.json()
@@ -1300,6 +1301,7 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
         if not foundPDS7: send_tele_msg("Unknown PDS7: {}".format(PDS7), receiver_id="SUPERUSERS")
         if not foundPDS8: send_tele_msg("Unknown PDS8: {}".format(PDS8), receiver_id="SUPERUSERS")
         if not foundPDS9: send_tele_msg("Unknown PDS9: {}".format(PDS9), receiver_id="SUPERUSERS")
+        if not foundCDS or not foundPDS7 or not foundPDS8 or not foundPDS9: sendCET = False
         allMembers = group_data['participants']
         for member in allMembers:
             memberId = member['id'].split('@c.us')[0][2:]
@@ -1321,7 +1323,7 @@ def updateWhatsappGrp(cet, tmpCmdsQ, receiver_id = None):
     else: 
         send_tele_msg("Unable to check whether all members were added successfully: {}.".format(response.json()), receiver_id="SUPERUSERS")
         group_data = None
-    sendCET = True
+
     if group_data is not None: 
         allMembers = group_data['participants']
         allMemberNumbers = []
