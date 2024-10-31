@@ -1621,7 +1621,7 @@ def conductTrackingFactory(haQ, service, oldCellsUpdate = None):
                 body = {'requests': cellRequests}
                 response = service.spreadsheets().batchUpdate(spreadsheetId=conductTrackingSheet.spreadsheet_id, body=body).execute()
                 return cellsUpdate
-        except (requests.exceptions.JSONDecodeError, gspread.exceptions.APIError): # google API gave up momentarily
+        except (requests.exceptions.JSONDecodeError, gspread.exceptions.APIError, TimeoutError, requests.exceptions.HTTPError): # google API gave up momentarily
             return oldCellsUpdate
     except Exception as e:
         send_tele_msg("Encountered exception while trying to update conduct tracking sheet:\n{}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
