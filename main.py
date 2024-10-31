@@ -1696,6 +1696,7 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
             sheetNominalRollQ.put((cCoyNominalRollSheet, allPerson))
             
             # sending of HA at risk personnel
+            atRiskPersonnel = None
             while atRiskPersonnel is None:
                 while not haQ.empty():
                     atRiskPersonnel = haQ.get()
