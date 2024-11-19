@@ -1577,8 +1577,8 @@ def conductTrackingFactory(haQ, service, oldCellsUpdate = None):
                                 "fields": "userEnteredFormat.backgroundColor"
                             }
                         })
-                    if row >= 4 and row <= 20: platoon = "HQ"
-                    elif row >= 21 and row <= 44: platoon = "7"
+                    if row >= 4 and row <= 19: platoon = "HQ"
+                    elif row >= 20 and row <= 44: platoon = "7"
                     elif row >= 45 and row <= 69: platoon = "8"
                     elif row >= 70 and row <= 95: platoon = "9"
                     else: platoon = "COMMANDERS"
@@ -1643,111 +1643,110 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
     creds = ServiceAccountCredentials.from_json_keyfile_dict(SERVICE_ACCOUNT_CREDENTIAL, ['https://www.googleapis.com/auth/spreadsheets'])
     service = build('sheets', 'v4', credentials=creds)
     while True:
+        try:
+            # Auto updating of MC Lapses and MAs everyday at 0600
+            # Also update charlie nominal roll in memory
+            # Also send HA at risk personnel
+            if not Daily and datetime.now().hour == 6 and datetime.now().minute == 0:
+                send_tele_msg("Checking for MAs...")
+                autoCheckMA()
 
-        # Auto updating of MC Lapses and MAs everyday at 0600
-        # Also update charlie nominal roll in memory
-        # Also send HA at risk personnel
-        if not Daily and datetime.now().hour == 6 and datetime.now().minute == 0:
-            send_tele_msg("Checking for MAs...")
-            autoCheckMA()
+                # Auto sending of temporary duty commanders list if any
+                tmpDutyCmdsDict = dict()
+                while not tmpCmdsQ.empty(): tmpDutyCmdsDict = tmpCmdsQ.get()
+                # remove any outdated temporarily added duty commanders
+                keysToDelete = list()
+                for key, value in tmpDutyCmdsDict.items():
+                    if datetime.strptime(key, "%d%m%y").date() < datetime.now().date():
+                        keysToDelete.append(key)
+                for key in keysToDelete: del tmpDutyCmdsDict[key]
+                for date, value in tmpDutyCmdsDict.items():
+                    tele_msg = "Temporary duty commanders until {}:\n".format(date)
+                    for index, slave in enumerate(value, start = 0): 
+                        name, number = slave
+                        if index == 0: tele_msg = "".join([tele_msg, (name if name != "Unknown" else number)])
+                        else: tele_msg = ", ".join([tele_msg, (name if name != "Unknown" else number)])
+                    send_tele_msg(tele_msg, receiver_id = "SUPERUSERS")
+                # queue should only hold one list at a time.
+                tmpCmdsQ.put(tmpDutyCmdsDict)
+                send_tele_msg("Checking for missing MC and Status files. This might take a while.")
+                checkMcStatus(send_whatsapp=ENABLE_WHATSAPP_API)
 
-            # Auto sending of temporary duty commanders list if any
-            tmpDutyCmdsDict = dict()
-            while not tmpCmdsQ.empty(): tmpDutyCmdsDict = tmpCmdsQ.get()
-            # remove any outdated temporarily added duty commanders
-            keysToDelete = list()
-            for key, value in tmpDutyCmdsDict.items():
-                if datetime.strptime(key, "%d%m%y").date() < datetime.now().date():
-                    keysToDelete.append(key)
-            for key in keysToDelete: del tmpDutyCmdsDict[key]
-            for date, value in tmpDutyCmdsDict.items():
-                tele_msg = "Temporary duty commanders until {}:\n".format(date)
-                for index, slave in enumerate(value, start = 0): 
-                    name, number = slave
-                    if index == 0: tele_msg = "".join([tele_msg, (name if name != "Unknown" else number)])
-                    else: tele_msg = ", ".join([tele_msg, (name if name != "Unknown" else number)])
-                send_tele_msg(tele_msg, receiver_id = "SUPERUSERS")
-            # queue should only hold one list at a time.
-            tmpCmdsQ.put(tmpDutyCmdsDict)
-            send_tele_msg("Checking for missing MC and Status files. This might take a while.")
-            checkMcStatus(send_whatsapp=ENABLE_WHATSAPP_API)
-            
-            # updating charlie nominal roll in memory once per day
-            response = supabase.table("profiles").select("*").execute()
-            response = response.json()
-            response = response.replace('rank', 'Rank').replace('name', 'Name').replace('platoon', 'Platoon').replace('section', 'Section').replace('email', 'Email').replace('contact', 'Contact').replace('appointment', 'Appointment').replace('duty_points', 'Duty points').replace('ration', 'Ration').replace('shirt_size', 'Shirt Size').replace('pants_size', 'Pants Size').replace('pes', 'PES')
-            data = json.loads(response)
-            charlieNominalRoll = data['data']
-            allNames = [person['Name'] for person in charlieNominalRoll]
-            allContacts = [person['Contact'] for person in charlieNominalRoll]
-            nominalRollQ.put((charlieNominalRoll, allNames, allContacts))
+                # updating charlie nominal roll in memory once per day
+                response = supabase.table("profiles").select("*").execute()
+                response = response.json()
+                response = response.replace('rank', 'Rank').replace('name', 'Name').replace('platoon', 'Platoon').replace('section', 'Section').replace('email', 'Email').replace('contact', 'Contact').replace('appointment', 'Appointment').replace('duty_points', 'Duty points').replace('ration', 'Ration').replace('shirt_size', 'Shirt Size').replace('pants_size', 'Pants Size').replace('pes', 'PES')
+                data = json.loads(response)
+                charlieNominalRoll = data['data']
+                allNames = [person['Name'] for person in charlieNominalRoll]
+                allContacts = [person['Contact'] for person in charlieNominalRoll]
+                nominalRollQ.put((charlieNominalRoll, allNames, allContacts))
 
-            sheet = None
-            for attempt in range(5):
-                try: 
-                    sheet = gc.open("Charlie Nominal Roll")
-                    break
-                except SSLError as e:
-                    if attempt < 4: time.sleep(5)
-                    else: raise e
-            worksheets = sheet.worksheets()
-            cCoyNominalRollSheet = next(ws for ws in worksheets if ws.title == "COMPANY ORBAT")
-            allPerson = cCoyNominalRollSheet.get_all_values()
-            sheetNominalRollQ.put((cCoyNominalRollSheet, allPerson))
-            
-            # sending of HA at risk personnel
-            atRiskPersonnel = None
-            while atRiskPersonnel is None:
-                while not haQ.empty():
-                    atRiskPersonnel = haQ.get()
-            haQ.put(atRiskPersonnel)
-            priority_order = ['HQ', '7', '8', '9', 'COMMANDERS']
-            atRiskPersonnel = sorted(atRiskPersonnel, key=lambda x: priority_order.index(x[1]))
-            count_by_type = Counter([x[1] for x in atRiskPersonnel])
-            numHQ = count_by_type.get("HQ", 0)
-            num7 = count_by_type.get("7", 0)
-            num8 = count_by_type.get("8", 0)
-            num9 = count_by_type.get("9", 0)
-            numCOMD = count_by_type.get("COMMANDERS", 0)
-            tele_msg = "HA At Risk:"
-            startHQ = False
-            start7 = False
-            start8 = False
-            start9 = False
-            startCOMD = False
-            for person, platoon, details in atRiskPersonnel:
-                if not startHQ and numHQ > 0 and platoon == "HQ":
-                    tele_msg = "\n\n".join([tele_msg, "Coy HQ: ({})".format(numHQ)])
-                    startHQ = True
-                if not start7 and num7 > 0 and platoon == "7":
-                    tele_msg = "\n\n".join([tele_msg, "P7: ({})".format(num7)])
-                    start7 = True
-                if not start8 and num8 > 0 and platoon == "8":
-                    tele_msg = "\n\n".join([tele_msg, "P8: ({})".format(num8)])
-                    start8 = True
-                if not start9 and num9 > 0 and platoon == "9":
-                    tele_msg = "\n\n".join([tele_msg, "P9: ({})".format(num9)])
-                    start9 = True
-                if not startCOMD and numCOMD > 0 and platoon == "COMMANDERS":
-                    tele_msg = "\n\n".join([tele_msg, "COMMANDERS: ({})".format(numCOMD)])
-                    startCOMD = True
-                tele_msg = "\n".join([tele_msg, "{}\n{}\n".format(person, details)])
-                if len(tele_msg) > MAX_MESSAGE_LENGTH-2000:
+                sheet = None
+                for attempt in range(5):
+                    try: 
+                        sheet = gc.open("Charlie Nominal Roll")
+                        break
+                    except SSLError as e:
+                        if attempt < 4: time.sleep(5)
+                        else: raise e
+                worksheets = sheet.worksheets()
+                cCoyNominalRollSheet = next(ws for ws in worksheets if ws.title == "COMPANY ORBAT")
+                allPerson = cCoyNominalRollSheet.get_all_values()
+                sheetNominalRollQ.put((cCoyNominalRollSheet, allPerson))
+
+                # sending of HA at risk personnel
+                atRiskPersonnel = None
+                while atRiskPersonnel is None:
+                    while not haQ.empty():
+                        atRiskPersonnel = haQ.get()
+                haQ.put(atRiskPersonnel)
+                priority_order = ['HQ', '7', '8', '9', 'COMMANDERS']
+                atRiskPersonnel = sorted(atRiskPersonnel, key=lambda x: priority_order.index(x[1]))
+                count_by_type = Counter([x[1] for x in atRiskPersonnel])
+                numHQ = count_by_type.get("HQ", 0)
+                num7 = count_by_type.get("7", 0)
+                num8 = count_by_type.get("8", 0)
+                num9 = count_by_type.get("9", 0)
+                numCOMD = count_by_type.get("COMMANDERS", 0)
+                tele_msg = "HA At Risk:"
+                startHQ = False
+                start7 = False
+                start8 = False
+                start9 = False
+                startCOMD = False
+                for person, platoon, details in atRiskPersonnel:
+                    if not startHQ and numHQ > 0 and platoon == "HQ":
+                        tele_msg = "\n\n".join([tele_msg, "Coy HQ: ({})".format(numHQ)])
+                        startHQ = True
+                    if not start7 and num7 > 0 and platoon == "7":
+                        tele_msg = "\n\n".join([tele_msg, "P7: ({})".format(num7)])
+                        start7 = True
+                    if not start8 and num8 > 0 and platoon == "8":
+                        tele_msg = "\n\n".join([tele_msg, "P8: ({})".format(num8)])
+                        start8 = True
+                    if not start9 and num9 > 0 and platoon == "9":
+                        tele_msg = "\n\n".join([tele_msg, "P9: ({})".format(num9)])
+                        start9 = True
+                    if not startCOMD and numCOMD > 0 and platoon == "COMMANDERS":
+                        tele_msg = "\n\n".join([tele_msg, "COMMANDERS: ({})".format(numCOMD)])
+                        startCOMD = True
+                    tele_msg = "\n".join([tele_msg, "{}\n{}\n".format(person, details)])
+                    if len(tele_msg) > MAX_MESSAGE_LENGTH-2000:
+                        send_tele_msg(tele_msg)
+                        if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+                        tele_msg = "HA At Risk:"
+                if len(atRiskPersonnel) != 0: 
                     send_tele_msg(tele_msg)
-                    if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
-                    tele_msg = "HA At Risk:"
-            if len(atRiskPersonnel) != 0: 
-                send_tele_msg(tele_msg)
-                if ENABLE_WHATSAPP_API: 
-                    response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
-                    send_tele_msg("Sending HA at risk personnel to WhatsApp", receiver_id="SUPERUSERS")
-            Daily = True
-        
-        elif datetime.now().hour == 6 and datetime.now().minute != 0: Daily = False
+                    if ENABLE_WHATSAPP_API: 
+                        response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+                        send_tele_msg("Sending HA at risk personnel to WhatsApp", receiver_id="SUPERUSERS")
+                Daily = True
 
-        # send reminder to update conduct tracking sheet if any activites were done for the day
-        if not conductTrackingReminder and datetime.now().hour == 21 and datetime.now().minute == 0: 
-            try:
+            elif datetime.now().hour == 6 and datetime.now().minute != 0: Daily = False
+
+            # send reminder to update conduct tracking sheet if any activites were done for the day
+            if not conductTrackingReminder and datetime.now().hour == 21 and datetime.now().minute == 0: 
                 sheet = None
                 for attempt in range(5):
                     try: 
@@ -1777,14 +1776,11 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
                     send_tele_msg("Sending conduct tracking reminder to WhatsApp", receiver_id="SUPERUSERS")
                     response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
 
-            except Exception as e:
-                send_tele_msg("Encountered exception trying to send update conduct tracking reminder:\n{}".format(traceback.format_exc()))
+                conductTrackingReminder = True
 
-            conductTrackingReminder = True
-        
-        elif datetime.now().hour == 21 and datetime.now().minute != 0: conductTrackingReminder = False
+            elif datetime.now().hour == 21 and datetime.now().minute != 0: conductTrackingReminder = False
 
-        try: # Auto reminding of CDS to send report sick parade state every morning 
+            # Auto reminding of CDS to send report sick parade state every morning 
             while not cetQ.empty(): 
                 sentCdsReminder = False
                 fpDateTime = cetQ.get()
@@ -1796,28 +1792,29 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
                     else: 
                         send_tele_msg("Invalid CET date to schedule CDS reminder.", receiver_id=fpDateTime[2])
                         fpDateTime = None
+
+            # there was a sent CET since the start of the bot
+            if fpDateTime is not None:
+                # send reminder during weekdays when it hits the FP date and time of sent CET
+                if datetime.now().isoweekday() in weekDay and datetime.now().day == int(fpDateTime[0][:2]) and datetime.now().hour == int(fpDateTime[1][:2]) and datetime.now().minute == int(fpDateTime[1][-2:]) and not sentCdsReminder:
+                    send_tele_msg("Sending automated CDS reminder", receiver_id="SUPERUSERS")
+                    if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, "This is an automated reminder for the CDS to send the REPORT SICK PARADE STATE\nhttps://docs.google.com/spreadsheets/d/1y6q2rFUE_dbb-l_Ps3R3mQVSPJT_DB_kDys1uyFeXRg/edit?gid=802597665#gid=802597665")
+                    sentCdsReminder = True
+
+            # Monthly backup of supabase nominal roll
+            if not backedupSupabase and datetime.now().day == 1:
+                backup_charlie_nominal_roll()
+                backedupSupabase = True
+            elif datetime.now().day != 1: backedupSupabase = False
+
+            # update conduct tracking sheet
+            oldCellsUpdate = conductTrackingFactory(haQ, service, oldCellsUpdate)
+
+            time.sleep(2)
+
         except Exception as e:
             print("Encountered exception:\n{}".format(traceback.format_exc()))
-            send_tele_msg("Encountered exception while trying to schedule CDS reminder:\n{}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
-        
-        # there was a sent CET since the start of the bot
-        if fpDateTime is not None:
-            # send reminder during weekdays when it hits the FP date and time of sent CET
-            if datetime.now().isoweekday() in weekDay and datetime.now().day == int(fpDateTime[0][:2]) and datetime.now().hour == int(fpDateTime[1][:2]) and datetime.now().minute == int(fpDateTime[1][-2:]) and not sentCdsReminder:
-                send_tele_msg("Sending automated CDS reminder", receiver_id="SUPERUSERS")
-                if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, "This is an automated reminder for the CDS to send the REPORT SICK PARADE STATE\nhttps://docs.google.com/spreadsheets/d/1y6q2rFUE_dbb-l_Ps3R3mQVSPJT_DB_kDys1uyFeXRg/edit?gid=802597665#gid=802597665")
-                sentCdsReminder = True
-
-        # Monthly backup of supabase nominal roll
-        if not backedupSupabase and datetime.now().day == 1:
-            backup_charlie_nominal_roll()
-            backedupSupabase = True
-        elif datetime.now().day != 1: backedupSupabase = False
-
-        # update conduct tracking sheet
-        oldCellsUpdate = conductTrackingFactory(haQ, service, oldCellsUpdate)
-
-        time.sleep(2)
+            send_tele_msg("Encountered exception in daily loop:\n{}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
 
 NORMAL_USER_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status files\n/checkconduct -> Conduct Tracking Updates\
 \n/generateIR -> Help to generate IR\n/gethaatrisk -> Get list of HA at risk personnel"
