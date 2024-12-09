@@ -1771,7 +1771,7 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
                 for index in colIndexes:
                     conductName = conductTrackingSheet.col_values(index)[3]
                     tele_msg = "\n".join([tele_msg, conductName])
-                tele_msg = "\n".join([tele_msg, "https://docs.google.com/spreadsheets/d/1TBHzKqmEHmyONaMQJoqt4HWwdsoY0pRSEv8WSoXDmyw/edit?gid=1000647342#gid=1000647342"])
+                tele_msg = "\n".join([tele_msg, "https://tinyurl.com/2a9agqbq"])
                 if ENABLE_WHATSAPP_API and len(colIndexes) > 0: 
                     send_tele_msg("Sending conduct tracking reminder to WhatsApp", receiver_id="SUPERUSERS")
                     response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
@@ -1797,8 +1797,8 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
             if fpDateTime is not None:
                 # send reminder during weekdays when it hits the FP date and time of sent CET
                 if datetime.now().isoweekday() in weekDay and datetime.now().day == int(fpDateTime[0][:2]) and datetime.now().hour == int(fpDateTime[1][:2]) and datetime.now().minute == int(fpDateTime[1][-2:]) and not sentCdsReminder:
-                    send_tele_msg("Sending automated CDS reminder", receiver_id="SUPERUSERS")
-                    if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, "This is an automated reminder for the CDS to send the REPORT SICK PARADE STATE\nhttps://docs.google.com/spreadsheets/d/1y6q2rFUE_dbb-l_Ps3R3mQVSPJT_DB_kDys1uyFeXRg/edit?gid=802597665#gid=802597665")
+                    send_tele_msg("Sending CDS reminder", receiver_id="SUPERUSERS")
+                    if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, "This is a reminder for the CDS to send the REPORT SICK PARADE STATE\ntinyurl.com/3gdsccoy23")
                     sentCdsReminder = True
 
             # Monthly backup of supabase nominal roll
