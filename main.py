@@ -10,7 +10,7 @@ import platform
 from gspread_formatting import *
 from datetime import datetime, timedelta
 from collections import Counter
-from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS, SUPERUSERS, DUTY_GRP_ID, CHARLIE_Y2_ID, WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE, SUPABASE_URL, SUPABASE_KEY, SUPBASE_BACKUP_DRIVE_ID, CHARLIE_DUTY_CMDS, PERM_DUTY_CMDS, TIMETREE_USERNAME, TIMETREE_PASSWORD, TIMETREE_CALENDAR_ID
+from config import SERVICE_ACCOUNT_CREDENTIAL, TELEGRAM_CHANNEL_BOT_TOKEN, CHANNEL_IDS, SUPERUSERS, DUTY_GRP_ID, CHARLIE_Y2_ID, MY_COMMANDERS_Y2_ID, WHATSAPP_ID_INSTANCE, WHATSAPP_TOKEN_INSTANCE, SUPABASE_URL, SUPABASE_KEY, SUPBASE_BACKUP_DRIVE_ID, CHARLIE_DUTY_CMDS, PERM_DUTY_CMDS, TIMETREE_USERNAME, TIMETREE_PASSWORD, TIMETREE_CALENDAR_ID
 import traceback
 import copy
 
@@ -1624,7 +1624,7 @@ def conductTrackingFactory(haQ, service, oldCellsUpdate = None):
         except (requests.exceptions.JSONDecodeError, gspread.exceptions.APIError, TimeoutError, requests.exceptions.HTTPError): # google API gave up momentarily
             return oldCellsUpdate
     except Exception as e:
-        send_tele_msg("Encountered exception while trying to update conduct tracking sheet:\n{}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
+        # send_tele_msg("Encountered exception while trying to update conduct tracking sheet:\n{}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
         return None
 
 def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetRequestsQ):
@@ -1798,7 +1798,7 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
                 # send reminder during weekdays when it hits the FP date and time of sent CET
                 if datetime.now().isoweekday() in weekDay and datetime.now().day == int(fpDateTime[0][:2]) and datetime.now().hour == int(fpDateTime[1][:2]) and datetime.now().minute == int(fpDateTime[1][-2:]) and not sentCdsReminder:
                     send_tele_msg("Sending CDS reminder", receiver_id="SUPERUSERS")
-                    if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, "This is a reminder for the CDS to send the REPORT SICK PARADE STATE\ntinyurl.com/3gdsccoy23")
+                    if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(MY_COMMANDERS_Y2_ID, "This is a reminder for the CDS to send the REPORT SICK PARADE STATE\ntinyurl.com/3gdsccoy23")
                     sentCdsReminder = True
 
             # Monthly backup of supabase nominal roll
