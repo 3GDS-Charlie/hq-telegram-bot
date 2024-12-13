@@ -82,7 +82,7 @@ trooperRanks = ['PTE', 'PFC', 'LCP', 'CPL', 'CFC']
 wospecRanks = ['3SG', '2SG', '1SG', 'SSG', 'MSG', '3WO', '2WO', '1WO', 'MWO', 'SWO', 'CWO']
 officerRanks = ['2LT', 'LTA', 'CPT', 'MAJ', 'LTC', 'SLTC', 'COL', 'BG', 'MG', 'LG']
 
-ENABLE_WHATSAPP_API = True # Flag to enable live whatsapp manipulation
+ENABLE_WHATSAPP_API = False # Flag to enable live whatsapp manipulation
 
 masterUserRequests = dict()
 rateLimit = 1 # number of seconds between commands per user
@@ -1905,6 +1905,8 @@ async def updateCet(update: Update, context: CallbackContext) -> int:
         except KeyError: masterUserRequests[str(update.effective_user.id)] = None
         if masterUserRequests[str(update.effective_user.id)] is None or time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
             if updateDutyGrpUserRequests[str(update.effective_user.id)] is None or not updateDutyGrpUserRequests[str(update.effective_user.id)].is_alive():
+                await update.message.reply_text("This feature has been disabled.")
+                return ConversationHandler.END
                 masterUserRequests[str(update.effective_user.id)] = time.time()
                 await update.message.reply_text("Send the new CET or send /cancel to cancel.")
                 return ASK_CET
@@ -2705,12 +2707,12 @@ def telegram_manager() -> None:
 
 if __name__ == '__main__':
 
-    updateNotes = "Added Y2 PC HQ as super user"
+    updateNotes = "Disabled all whatsapp message functionality"
     # send_tele_msg("Welcome to HQ Bot. Strong Alone, Stronger Together.")
     # send_tele_msg(NORMAL_USER_COMMANDS, receiver_id="NORMALUSERS")
     # send_tele_msg(ALL_COMMANDS, receiver_id="SUPERUSERS")
     # send_tele_msg("Send the latest CET using /updatedutygrp to schedule CDS reminder for report sick parade state during FP.", receiver_id="SUPERUSERS")
-    # send_tele_msg("*UPDATE NOTES\\:*\n{}".format(updateNotes), parseMode="MarkdownV2")
+    send_tele_msg("*UPDATE NOTES\\:*\n{}".format(updateNotes), parseMode="MarkdownV2")
 
     response = supabase.table("profiles").select("*").execute()
     response = response.json()
