@@ -1808,7 +1808,7 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
             elif datetime.now().day != 1: backedupSupabase = False
 
             # update conduct tracking sheet
-            oldCellsUpdate = conductTrackingFactory(haQ, service, oldCellsUpdate)
+            # oldCellsUpdate = conductTrackingFactory(haQ, service, oldCellsUpdate)
 
             time.sleep(2)
 
