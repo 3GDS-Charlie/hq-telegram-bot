@@ -1816,11 +1816,9 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
             print("Encountered exception:\n{}".format(traceback.format_exc()))
             send_tele_msg("Encountered exception in daily loop:\n{}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
 
-NORMAL_USER_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status files\n/checkconduct -> Conduct Tracking Updates\
-\n/generateIR -> Help to generate IR\n/gethaatrisk -> Get list of HA at risk personnel"
-ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status files\n/checkconduct -> Conduct Tracking Updates\
-\n/updatedutygrp -> Update duty group and schedule CDS reminder according to CET\n/addtmpmember -> Add temporary duty commanders to duty group\
-\n/resettmpdutycmds -> Reset list of temporary duty commanders\n/gethaatrisk -> Get list of HA at risk personnel\n/updateconducttracking -> Update conduct tracking sheet according to TimeTree\
+NORMAL_USER_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status files\
+\n/generateIR -> Help to generate IR"
+ALL_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status files\
 \n/generateIR -> IR generator\n/backupcharlienominalroll -> Backup charlie nominal roll from supabase to google drive"
 
 async def helpHandler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
