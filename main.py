@@ -2654,30 +2654,30 @@ def telegram_manager() -> None:
     # Add handlers
     application.add_handler(CommandHandler("help", helpHandler))
     application.add_handler(CommandHandler("checkmcstatus", checkMcStatusHandler))
-    application.add_handler(CommandHandler("checkconduct", checkConductHandler))
-    application.add_handler(CommandHandler("updateconducttracking", updateConductHandler))
-    application.add_handler(CommandHandler("resettmpdutycmds", resettmpdutycmds))
-    application.add_handler(CommandHandler("gethaatrisk", gethaatrisk))
+    # application.add_handler(CommandHandler("checkconduct", checkConductHandler))
+    # application.add_handler(CommandHandler("updateconducttracking", updateConductHandler))
+    # application.add_handler(CommandHandler("resettmpdutycmds", resettmpdutycmds))
+    # application.add_handler(CommandHandler("gethaatrisk", gethaatrisk))
     application.add_handler(CommandHandler("backupcharlienominalroll", backupcharlienominalroll))
 
     # Add a conversation handler for the new command
-    conv_dutygrp_handler = ConversationHandler(
-        entry_points=[CommandHandler('updatedutygrp', updateCet)],
-        states={
-            ASK_CET: [MessageHandler(filters.TEXT & ~filters.COMMAND, updateDutyGrp)],
-        },
-        fallbacks=[CommandHandler('cancel', cancel_dutygrp)],
-    )
+    # conv_dutygrp_handler = ConversationHandler(
+    #     entry_points=[CommandHandler('updatedutygrp', updateCet)],
+    #     states={
+    #         ASK_CET: [MessageHandler(filters.TEXT & ~filters.COMMAND, updateDutyGrp)],
+    #     },
+    #     fallbacks=[CommandHandler('cancel', cancel_dutygrp)],
+    # )
 
-    conv_tempmembers_handler = ConversationHandler(
-        entry_points=[CommandHandler('addtmpmember', addtmpmember)],
-        states={
-            ADD_TMP_MEMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, addmembernames)],
-            ADD_TMP_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, addtmpdate)],
-            CONSOLIDATE_TMP_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, consolidatetmpdate)]
-        },
-        fallbacks=[CommandHandler('cancel', cancel_tempmembers)],
-    )
+    # conv_tempmembers_handler = ConversationHandler(
+    #     entry_points=[CommandHandler('addtmpmember', addtmpmember)],
+    #     states={
+    #         ADD_TMP_MEMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, addmembernames)],
+    #         ADD_TMP_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, addtmpdate)],
+    #         CONSOLIDATE_TMP_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, consolidatetmpdate)]
+    #     },
+    #     fallbacks=[CommandHandler('cancel', cancel_tempmembers)],
+    # )
 
     conv__IR_handler = ConversationHandler(
         entry_points=[CommandHandler('generateIR', start)],
@@ -2702,8 +2702,8 @@ def telegram_manager() -> None:
         allow_reentry=True)
 
     # Add the conversation handler
-    application.add_handler(conv_dutygrp_handler)
-    application.add_handler(conv_tempmembers_handler)
+    # application.add_handler(conv_dutygrp_handler)
+    # application.add_handler(conv_tempmembers_handler)
     application.add_handler(conv__IR_handler)
     application.add_handler(MessageHandler(filters.COMMAND, unknownCommand))
     application.add_error_handler(error_handler)
