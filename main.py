@@ -1945,6 +1945,8 @@ async def addtmpmember(update: Update, context: CallbackContext) -> int:
         if masterUserRequests[str(update.effective_user.id)] is None or time.time() - masterUserRequests[str(update.effective_user.id)] > rateLimit:
             if addtmpmemberUserRequests[str(update.effective_user.id)] is None or not addtmpmemberUserRequests[str(update.effective_user.id)].is_alive():
                 masterUserRequests[str(update.effective_user.id)] = time.time()
+                await update.message.reply_text("This feature has been disabled.")
+                return ConversationHandler.END
                 await update.message.reply_text("Send the name/number of the temporary member to add. Send /cancel to cancel the request at any time.")
                 # Auto sending of temporary duty commanders list if any
                 tmpDutyCmdsDict = dict()
@@ -2101,6 +2103,8 @@ async def cancel_tempmembers(update: Update, context: CallbackContext) -> int:
 
 async def resettmpdutycmds(update: Update, context: CallbackContext) -> int:
     if str(update.effective_user.id) in list(SUPERUSERS.values()):
+        await update.message.reply_text("This feature has been disabled.")
+        return ConversationHandler.END
         tmpDutyCmdsDict.clear()
         tmpDutyCmdsList.clear()
         while not tmpDutyCmdsQueue.empty(): tmpDutyCmdsQueue.get()
