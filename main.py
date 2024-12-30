@@ -1781,25 +1781,25 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
             # elif datetime.now().hour == 21 and datetime.now().minute != 0: conductTrackingReminder = False
 
             # Auto reminding of CDS to send report sick parade state every morning 
-            while not cetQ.empty(): 
-                sentCdsReminder = False
-                fpDateTime = cetQ.get()
-                # got latest CET
-                # check whether date and time is correct
-                if cetQ.empty(): 
-                    if fpDateTime is None: pass
-                    elif datetime.strptime(fpDateTime[0]+fpDateTime[1], "%d%m%y%H%M") > datetime.now(): send_tele_msg("CDS reminder for report sick parade state scheduled at {} {}".format(fpDateTime[0], fpDateTime[1]), receiver_id="SUPERUSERS")
-                    else: 
-                        send_tele_msg("Invalid CET date to schedule CDS reminder.", receiver_id=fpDateTime[2])
-                        fpDateTime = None
+            # while not cetQ.empty(): 
+            #     sentCdsReminder = False
+            #     fpDateTime = cetQ.get()
+            #     # got latest CET
+            #     # check whether date and time is correct
+            #     if cetQ.empty(): 
+            #         if fpDateTime is None: pass
+            #         elif datetime.strptime(fpDateTime[0]+fpDateTime[1], "%d%m%y%H%M") > datetime.now(): send_tele_msg("CDS reminder for report sick parade state scheduled at {} {}".format(fpDateTime[0], fpDateTime[1]), receiver_id="SUPERUSERS")
+            #         else: 
+            #             send_tele_msg("Invalid CET date to schedule CDS reminder.", receiver_id=fpDateTime[2])
+            #             fpDateTime = None
 
             # there was a sent CET since the start of the bot
-            if fpDateTime is not None:
-                # send reminder during weekdays when it hits the FP date and time of sent CET
-                if datetime.now().isoweekday() in weekDay and datetime.now().day == int(fpDateTime[0][:2]) and datetime.now().hour == int(fpDateTime[1][:2]) and datetime.now().minute == int(fpDateTime[1][-2:]) and not sentCdsReminder:
-                    send_tele_msg("Sending CDS reminder", receiver_id="SUPERUSERS")
-                    if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(MY_COMMANDERS_Y2_ID, "This is a reminder for the CDS to send the REPORT SICK PARADE STATE\ntinyurl.com/3gdsccoy23")
-                    sentCdsReminder = True
+            # if fpDateTime is not None:
+            #     # send reminder during weekdays when it hits the FP date and time of sent CET
+            #     if datetime.now().isoweekday() in weekDay and datetime.now().day == int(fpDateTime[0][:2]) and datetime.now().hour == int(fpDateTime[1][:2]) and datetime.now().minute == int(fpDateTime[1][-2:]) and not sentCdsReminder:
+            #         send_tele_msg("Sending CDS reminder", receiver_id="SUPERUSERS")
+            #         if ENABLE_WHATSAPP_API: response = greenAPI.sending.sendMessage(MY_COMMANDERS_Y2_ID, "This is a reminder for the CDS to send the REPORT SICK PARADE STATE\ntinyurl.com/3gdsccoy23")
+            #         sentCdsReminder = True
 
             # Monthly backup of supabase nominal roll
             if not backedupSupabase and datetime.now().day == 1:
@@ -1810,11 +1810,11 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
             # update conduct tracking sheet
             # oldCellsUpdate = conductTrackingFactory(haQ, service, oldCellsUpdate)
 
-            time.sleep(2)
-
         except Exception as e:
             print("Encountered exception:\n{}".format(traceback.format_exc()))
             send_tele_msg("Encountered exception in daily loop:\n{}".format(traceback.format_exc()), receiver_id="SUPERUSERS")
+
+        time.sleep(2)
 
 NORMAL_USER_COMMANDS = "Available Commands:\n/checkmcstatus -> Check for MC/Status files\
 \n/generateIR -> Help to generate IR"
