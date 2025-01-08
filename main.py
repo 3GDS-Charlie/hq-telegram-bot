@@ -1746,37 +1746,38 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
             elif datetime.now().hour == 6 and datetime.now().minute != 0: Daily = False
 
             # send reminder to update conduct tracking sheet if any activites were done for the day
-            # if not conductTrackingReminder and datetime.now().hour == 21 and datetime.now().minute == 0: 
-            #     sheet = None
-            #     for attempt in range(5):
-            #         try: 
-            #             sheet = gc.open("Charlie Conduct Tracking")
-            #             break
-            #         except SSLError as e:
-            #             if attempt < 4: time.sleep(5)
-            #             else: raise e
-            #     conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
-            #     allDates = conductTrackingSheet.row_values(2)
-            #     currentDate = "{}{}{}".format(("0" + str(datetime.now().day)) if datetime.now().day < 10 else (str(datetime.now().day)), (("0" + str(datetime.now().month)) if datetime.now().month < 10 else (str(datetime.now().month))), str(datetime.now().year).replace("20", ""))
-            #     colIndexes = []
-            #     foundIndexes = False
-            #     for index, date in enumerate(allDates, start = 1):
-            #         if date == currentDate: 
-            #             colIndexes.append(index)
-            #             foundIndexes = True
-            #         elif foundIndexes and date != currentDate and date != "": break
+            if not conductTrackingReminder and datetime.now().hour == 21 and datetime.now().minute == 0: 
+                sheet = None
+                for attempt in range(5):
+                    try: 
+                        sheet = gc.open("Charlie Conduct Tracking")
+                        break
+                    except SSLError as e:
+                        if attempt < 4: time.sleep(5)
+                        else: raise e
+                conductTrackingSheet = sheet.worksheet("CONDUCT TRACKING")
+                allDates = conductTrackingSheet.row_values(2)
+                currentDate = "{}{}{}".format(("0" + str(datetime.now().day)) if datetime.now().day < 10 else (str(datetime.now().day)), (("0" + str(datetime.now().month)) if datetime.now().month < 10 else (str(datetime.now().month))), str(datetime.now().year).replace("20", ""))
+                colIndexes = []
+                foundIndexes = False
+                for index, date in enumerate(allDates, start = 1):
+                    if date == currentDate: 
+                        colIndexes.append(index)
+                        foundIndexes = True
+                    elif foundIndexes and date != currentDate and date != "": break
 
-            #     # for each conduct TODAY if any
-            #     tele_msg = "Hi all, please be reminded to update the conducts today in the conduct tracking sheet:"
-            #     for index in colIndexes:
-            #         conductName = conductTrackingSheet.col_values(index)[3]
-            #         tele_msg = "\n".join([tele_msg, conductName])
-            #     tele_msg = "\n".join([tele_msg, "https://tinyurl.com/2a9agqbq"])
-            #     if ENABLE_WHATSAPP_API and len(colIndexes) > 0: 
-            #         send_tele_msg("Sending conduct tracking reminder to WhatsApp", receiver_id="SUPERUSERS")
-            #         response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
+                # for each conduct TODAY if any
+                tele_msg = "Hi all, please be reminded to update the conducts today in the conduct tracking sheet:"
+                for index in colIndexes:
+                    conductName = conductTrackingSheet.col_values(index)[3]
+                    tele_msg = "\n".join([tele_msg, conductName])
+                tele_msg = "\n".join([tele_msg, "https://tinyurl.com/2a9agqbq"])
+                send_tele_msg(tele_msg)
+                # if ENABLE_WHATSAPP_API and len(colIndexes) > 0: 
+                #     send_tele_msg("Sending conduct tracking reminder to WhatsApp", receiver_id="SUPERUSERS")
+                #     response = greenAPI.sending.sendMessage(CHARLIE_Y2_ID, tele_msg)
 
-            #     conductTrackingReminder = True
+                conductTrackingReminder = True
 
             # elif datetime.now().hour == 21 and datetime.now().minute != 0: conductTrackingReminder = False
 
@@ -1808,7 +1809,7 @@ def main(cetQ, tmpCmdsQ, nominalRollQ, haQ, sheetNominalRollQ, googleSheetReques
             elif datetime.now().day != 1: backedupSupabase = False
 
             # update conduct tracking sheet
-            # oldCellsUpdate = conductTrackingFactory(haQ, service, oldCellsUpdate)
+            oldCellsUpdate = conductTrackingFactory(haQ, service, oldCellsUpdate)
 
         except Exception as e:
             print("Encountered exception:\n{}".format(traceback.format_exc()))
@@ -2655,7 +2656,7 @@ def telegram_manager() -> None:
     # application.add_handler(CommandHandler("checkconduct", checkConductHandler))
     # application.add_handler(CommandHandler("updateconducttracking", updateConductHandler))
     # application.add_handler(CommandHandler("resettmpdutycmds", resettmpdutycmds))
-    # application.add_handler(CommandHandler("gethaatrisk", gethaatrisk))
+    application.add_handler(CommandHandler("gethaatrisk", gethaatrisk))
     application.add_handler(CommandHandler("backupcharlienominalroll", backupcharlienominalroll))
 
     # Add a conversation handler for the new command
