@@ -979,7 +979,7 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                                 id = driveMcStatusTmp['id']
                                 try:  
                                     int(driveMcStatusTmp['title'].split(' ')[0])
-                                    num = driveMcStatusTmp['title'].split(' ')[0]
+                                    num = int(driveMcStatusTmp['title'].split(' ')[0])
                                     start = re.findall(dateRegEx, driveMcStatusTmp['title'])
                                     dates = [''.join(match) for match in start]
                                     allFoundDates = list()
@@ -991,7 +991,7 @@ def checkMcStatus(receiver_id = None, send_whatsapp = False):
                                         allFiles.append((id, num, smallest_date, driveMcStatusTmp['title']))
                                 except ValueError: continue
                             allFiles = sorted(allFiles, key=lambda x: x[2])
-                            num = allFiles[0][1] # take the next biggest number
+                            num = int(allFiles[0][1]) # take the next biggest number
                             for file in allFiles: # rename all number for files that come after current
                                 updated_file = service.files().update(
                                     fileId=file[0],
